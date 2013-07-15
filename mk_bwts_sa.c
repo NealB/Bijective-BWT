@@ -85,10 +85,14 @@ unsigned char *make_bwts_sa(unsigned char *T, int len)
 
 				while(test_rank+1<len && (sa[test_rank+1] > lw_start+lw_len)) {
 					int k = 0;
-					while((sa[test_rank+1] + k < len) && T[lw_start + (k % lw_len)] == T[sa[test_rank+1] + k]) {
+					while((sa[test_rank+1] + k < len) && (k < lw_len) && T[lw_start + (k % lw_len)] == T[sa[test_rank+1] + k]) {
 						k++;
 					}
 					if((sa[test_rank+1] + k < len) && T[lw_start + (k % lw_len)] < T[sa[test_rank+1] + k]) {
+						break;
+					}
+					if((k == lw_len) && (test_rank < isa[sa[test_rank+1] + k])) {
+						fprintf(stderr, "Hit new case\n");
 						break;
 					}
 
