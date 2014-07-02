@@ -109,15 +109,16 @@ unsigned char *make_bwts_sa(void)
 	for(i=1; i<len && min>0; i++) {
 		if(isa[i] < min) {
 			int lw_start = min_i;
-			int test_rank = move_lyndonword_head(lw_start, i - min_i, min);
+			int lw_head_rank = move_lyndonword_head(lw_start, i - min_i, min);
 
-			int ref_rank = test_rank;
+			int ref_rank = lw_head_rank;
 			int j;
 			for(j=i; j-->lw_start+1; ) { // iterate through the new lyndon word from end to start
-				test_rank = isa[j];
+				int test_rank = isa[j];
 				int start_rank = test_rank;
 				while(test_rank < len-1) {
-					if(j > sa[test_rank+1] || T[j] != T[sa[test_rank+1]] || ref_rank < isa[sa[test_rank+1]+1]) {
+					int next_rank_start = sa[test_rank+1];
+					if(j > next_rank_start || T[j] != T[next_rank_start] || ref_rank < isa[next_rank_start+1]) {
 						break;
 					}
 
