@@ -1,5 +1,6 @@
 CC = gcc
 CFLAGS = -O2
+#CFLAGS = -O2 -DSHOW_TIMINGS
 LDFLAGS = -ldivsufsort
 
 mk_bwts: mk_bwts_sa.o map_file.o

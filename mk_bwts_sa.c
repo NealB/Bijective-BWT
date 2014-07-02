@@ -6,7 +6,13 @@
 
 #ifdef SHOW_TIMINGS
 #include <time.h>
-clock_t last_clock, t;
+static clock_t last_clock, t;
+#define MARK_TIME(msg) \
+	t = clock();                                                                        \
+	fprintf(stderr, msg " time %0.3f\n", (double)(t - last_clock) / (double)CLOCKS_PER_SEC); \
+	last_clock = t;
+#else
+#define MARK_TIME(msg) /*nothing*/
 #endif
 
 static unsigned char *T;
@@ -36,11 +42,7 @@ int main(int argc, char **argv)
 	sa = (saidx_t *)malloc(sizeof(saidx_t) * len);
 	divsufsort(T, sa, len);
 
-#ifdef SHOW_TIMINGS
-	t = clock();
-	fprintf(stderr, "Suffix sort time %0.3f\n", (double)(t - last_clock) / (double)CLOCKS_PER_SEC);
-	last_clock = t;
-#endif
+	MARK_TIME("Suffix sort");
 
 	unsigned char *bwts = make_bwts_sa();
 
@@ -52,11 +54,7 @@ int main(int argc, char **argv)
 	}
 	fwrite(bwts, 1, len, bwtsout);
 
-#ifdef SHOW_TIMINGS
-	t = clock();
-	fprintf(stderr, "Write BWTS time %0.3f\n", (double)(t - last_clock) / (double)CLOCKS_PER_SEC);
-	last_clock = t;
-#endif
+	MARK_TIME("Write BWTS");
 
 	return 0;
 }
@@ -98,11 +96,7 @@ unsigned char *make_bwts_sa(void)
 		isa[sa[i]] = i;
 	}
 
-#ifdef SHOW_TIMINGS
-	t = clock();
-	fprintf(stderr, "Compute ISA time %0.3f\n", (double)(t - last_clock) / (double)CLOCKS_PER_SEC);
-	last_clock = t;
-#endif
+	MARK_TIME("Compute ISA");
 
 	min = isa[0];
 	min_i = 0;
@@ -142,11 +136,7 @@ unsigned char *make_bwts_sa(void)
 	}
 	free(sa);
 
-#ifdef SHOW_TIMINGS
-	t = clock();
-	fprintf(stderr, "Fix sort order time %0.3f\n", (double)(t - last_clock) / (double)CLOCKS_PER_SEC);
-	last_clock = t;
-#endif
+	MARK_TIME("Fix sort order");
 
 	unsigned char *bwts = (unsigned char *)malloc(len);
 
@@ -167,11 +157,7 @@ unsigned char *make_bwts_sa(void)
 	}
 	bwts[0] = T[len - 1];
 	
-#ifdef SHOW_TIMINGS
-	t = clock();
-	fprintf(stderr, "Generate BWTS time %0.3f\n", (double)(t - last_clock) / (double)CLOCKS_PER_SEC);
-	last_clock = t;
-#endif
+	MARK_TIME("Generate BWTS");
 
 	free(isa);
 
