@@ -2,30 +2,22 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <divsufsort.h>
+#include <stdint.h>
 #include "map_file.h"
 
 #ifdef SHOW_TIMINGS
 #include <time.h>
-static clock_t last_clock, t;
-#define MARK_TIME(msg) \
-	t = clock();                                                                        \
-	fprintf(stderr, msg " time %0.3f\n", (double)(t - last_clock) / (double)CLOCKS_PER_SEC); \
-	last_clock = t;
-#else
-#define MARK_TIME(msg) /*nothing*/
+clock_t last_clock, t;
 #endif
 
-static unsigned char *T;
-static long len;
-static saidx_t *sa;
-static int *isa;
-
-unsigned char *make_bwts_sa(void);
-int move_lyndonword_head(int lw_start, int lw_len, int lw_rank);
+unsigned char *make_bwts_sa(unsigned char *T, int len);
 
 
 int main(int argc, char **argv)
 {
+	unsigned char *T;
+	long len;
+
 	if(argc < 2) {
 		fprintf(stderr, "Usage: mk_bwts_sa <infile> [<outfile.bwts>]\n");
 		fprintf(stderr, "If unspecified, output is written to standard output\n");
@@ -39,12 +31,7 @@ int main(int argc, char **argv)
 	last_clock = clock();
 #endif
 
-	sa = (saidx_t *)malloc(sizeof(saidx_t) * len);
-	divsufsort(T, sa, len);
-
-	MARK_TIME("Suffix sort");
-
-	unsigned char *bwts = make_bwts_sa();
+	unsigned char *bwts = make_bwts_sa(T, len);
 
 	FILE *bwtsout = bwts_outfilename ? fopen(bwts_outfilename, "w") : stdout;
 	if(!bwtsout) {
@@ -54,92 +41,186 @@ int main(int argc, char **argv)
 	}
 	fwrite(bwts, 1, len, bwtsout);
 
-	MARK_TIME("Write BWTS");
+#ifdef SHOW_TIMINGS
+	t = clock();
+	fprintf(stderr, "Write BWTS time %0.3f\n", (double)(t - last_clock) / (double)CLOCKS_PER_SEC);
+	last_clock = t;
+#endif
 
 	return 0;
 }
 
-int move_lyndonword_head(int lw_start, int lw_len, int lw_rank)
+int duval_2_1(unsigned char *str, int len, int *ans) // Duval 1983, linear-time and O(1)-space.
 {
-	while(lw_rank+1<len && (sa[lw_rank+1] > lw_start+lw_len)) {
-		int k = 0;
-		int next_rank_start = sa[lw_rank+1];
-
-		while((next_rank_start + k < len) && (k < lw_len) && T[lw_start + k] == T[next_rank_start + k]) {
-			k++;
-		}
-		if((next_rank_start + k < len) && (k < lw_len) && T[lw_start + k] < T[next_rank_start + k]) {
+	int i, j, k = 0;
+	int factors = 0;
+	while( k < len )
+	{
+		i = k; j = k+1;
+		while( 1 )
+		{
+			if( j < len )
+			{
+				int str_i = str[i], str_j = str[j];
+				if( str_i < str_j )
+				{
+					i = k; j = j+1;
+					continue;
+				}
+				else if( str_i == str_j )
+				{
+					i = i+1;
+					j = j+1;
+					continue;
+				}
+			}
+			do {
+				k += (j-i);
+				ans[ factors++ ] = k;
+			} // e.g., ...ababab...
+			while( k <= i );
+			// k > i
 			break;
-		}
-		if((k == lw_len) && (lw_rank < isa[next_rank_start + k])) {
-			break;
-		}
+		}//while true
+	}//while k
+	return factors;
+}//duval_2_1(str)
 
-		sa[lw_rank] = sa[lw_rank+1];
-		isa[sa[lw_rank]] = lw_rank;
-		lw_rank++;
-	}
-	sa[lw_rank] = lw_start;
-	isa[sa[lw_rank]] = lw_rank;
-
-	return lw_rank;
-}
-
-unsigned char *make_bwts_sa(void)
+unsigned char *make_bwts_sa(unsigned char *T, int len)
 {
 	int min, min_i;
-	int i;
+	int i, j;
 
+	saidx_t *sa = (saidx_t *)malloc(sizeof(saidx_t) * len);
+	divsufsort(T, sa, len);
 
-	isa = (int *)malloc(sizeof(int) * len);
-	for(i=0; i<len; i++) {
-		isa[sa[i]] = i;
-	}
+#ifdef SHOW_TIMINGS
+	t = clock();
+	fprintf(stderr, "Suffix sort time %0.3f\n", (double)(t - last_clock) / (double)CLOCKS_PER_SEC);
+	last_clock = t;
+#endif
 
-	MARK_TIME("Compute ISA");
+	int *lyndonwords = (int *)malloc(sizeof(int) * len);
+	//for(i=0; i<len; i++) {
+		//isa[sa[i]] = i;
+	//}
+	int factors = duval_2_1(T, len, lyndonwords);
+	factors--;
 
-	min = isa[0];
+#ifdef SHOW_TIMINGS
+	t = clock();
+	fprintf(stderr, "Compute ISA time %0.3f\n", (double)(t - last_clock) / (double)CLOCKS_PER_SEC);
+	last_clock = t;
+#endif
+
+	min = binary_search_sa(0, T, sa, len);
 	min_i = 0;
-	for(i=1; i<len && min>0; i++) {
-		if(isa[i] < min) {
-			int lw_start = min_i;
-			int lw_head_rank = move_lyndonword_head(lw_start, i - min_i, min);
+	//for(i=0; i<len && min>0; i++) {
+		//if(isa[i] < min) {
+	int n;
+	for(n=0; n<factors; n++) {
+		i = lyndonwords[n];
+		int isa_i = binary_search_sa(i, T, sa, len);
 
-			int ref_rank = lw_head_rank;
-			int j;
-			for(j=i; j-->lw_start+1; ) { // iterate through the new lyndon word from end to start
-				int test_rank = isa[j];
-				int start_rank = test_rank;
-				while(test_rank < len-1) {
-					int next_rank_start = sa[test_rank+1];
-					if(j > next_rank_start || T[j] != T[next_rank_start] || ref_rank < isa[next_rank_start+1]) {
+				int endsym = T[i-1];
+				int pred_pass_count = 0;
+
+				for(j=isa_i; j<min-1; j++) {
+					pred_pass_count += (endsym == T[sa[j+1]-1]);
+				}
+
+			if(i>0) {
+				int lw_start = min_i;
+				int lw_len = i - min_i;
+				int test_rank = min;
+
+				while(test_rank+1<len && (sa[test_rank+1] > lw_start+lw_len)) {
+					int k = 0;
+					while((sa[test_rank+1] + k < len) && T[lw_start + (k % lw_len)] == T[sa[test_rank+1] + k]) {
+						k++;
+					}
+					if((sa[test_rank+1] + k < len) && T[lw_start + (k % lw_len)] < T[sa[test_rank+1] + k]) {
 						break;
 					}
 
+					pred_pass_count += (endsym == T[sa[test_rank+1]-1]);
+
 					sa[test_rank] = sa[test_rank+1];
-					isa[sa[test_rank]] = test_rank;
+					//isa[sa[test_rank]] = test_rank;
 					test_rank++;
 				}
-				sa[test_rank] = j;
-				isa[sa[test_rank]] = test_rank;
+				sa[test_rank] = lw_start;
+				//isa[sa[test_rank]] = test_rank;
 
-				ref_rank = test_rank;
 
-				if(start_rank == test_rank) {
-					break;
+
+				int ref_rank = test_rank;
+				for(j=i; j-->lw_start+1; ) { // iterate through the new lyndon word from end to start
+					int num_to_move_down = pred_pass_count;
+					pred_pass_count = 0;
+					endsym = T[j-1];
+
+
+					//test_rank = isa[j];
+					test_rank = binary_search_sa(j, T, sa, len);
+					int start_rank = test_rank;
+
+					while(test_rank < len-1) {
+						if(!(num_to_move_down--)) {
+							break;
+						}
+#if 0
+						if(j > sa[test_rank+1] || T[j] != T[sa[test_rank+1]] || ref_rank < isa[sa[test_rank+1]+1]) {
+							break;
+						}
+#endif
+						pred_pass_count += (endsym == T[sa[test_rank+1]-1]);
+
+						sa[test_rank] = sa[test_rank+1];
+						//isa[sa[test_rank]] = test_rank;
+						test_rank++;
+					}
+					sa[test_rank] = j;
+					//isa[sa[test_rank]] = test_rank;
+
+					ref_rank = test_rank;
+
+					if(start_rank == test_rank) {
+						break;
+					}
 				}
 			}
 
-			min = isa[i];
+			min = isa_i;
 			min_i = i;
-		}
 	}
-	free(sa);
+	//free(sa);
 
-	MARK_TIME("Fix sort order");
+#ifdef SHOW_TIMINGS
+	t = clock();
+	fprintf(stderr, "Fix sort order time %0.3f\n", (double)(t - last_clock) / (double)CLOCKS_PER_SEC);
+	last_clock = t;
+#endif
+
 
 	unsigned char *bwts = (unsigned char *)malloc(len);
 
+	j = factors;
+	int lw_end_symbol = T[len-1];
+	for(i=0; i<len; i++) {
+		if(sa[i]==0 || (j>0 && (sa[i] == lyndonwords[j-1]))) {
+			bwts[i] = lw_end_symbol;
+			if(sa[i]>0) {
+				lw_end_symbol = T[sa[i]-1];
+			}
+			j--;
+		}
+		else {
+			bwts[i] = T[sa[i]-1];
+		}
+	}
+
+#if 0
 	min = len;
 	min_i = 0;
 	for(i=0; i<len; i++) {
@@ -156,10 +237,15 @@ unsigned char *make_bwts_sa(void)
 		}
 	}
 	bwts[0] = T[len - 1];
+#endif
 	
-	MARK_TIME("Generate BWTS");
+#ifdef SHOW_TIMINGS
+	t = clock();
+	fprintf(stderr, "Generate BWTS time %0.3f\n", (double)(t - last_clock) / (double)CLOCKS_PER_SEC);
+	last_clock = t;
+#endif
 
-	free(isa);
+	//free(isa);
 
 	return bwts;
 }
