@@ -1,7 +1,9 @@
 .*.swp
 BAR
 FOO
-TEST
+TEST*
 map_file.o
 mk_bwts
 mk_bwts_sa.o
+binsearch_sa.o
+tags
