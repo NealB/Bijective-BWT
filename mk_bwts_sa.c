@@ -109,8 +109,9 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 			pred_pass_count += (endsym == T[SA[j]-1]);
 		}
 
-
+#ifdef SHOW_DEBUG
 		int initrank = lwar;
+#endif
 		while(lwar+1<len && (SA[lwar+1] > lw_start+lw_len)) {
 			int k = 0;
 			while((SA[lwar+1] + k < len) && T[lw_start + (k % lw_len)] == T[SA[lwar+1] + k]) {
@@ -143,7 +144,9 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 			uint32_t lwir = binary_search_sa(j, T, (uint32_t*)SA, len);
       while(SA[lwir] != j) lwir--;
 
+#ifdef SHOW_DEBUG
 			int initlwir = lwir;
+#endif
 			for(k=0; k<num_to_move_down; k++) {
 				pred_pass_count += (endsym == T[SA[lwir+1]-1]);
 

@@ -1,7 +1,7 @@
 CC = gcc
 #CFLAGS = -O2
-CFLAGS = -O2 -Wall -DSHOW_DEBUG
-#CFLAGS = -O2 -DSHOW_TIMINGS
+#CFLAGS = -O2 -Wall -DSHOW_DEBUG
+CFLAGS = -O2 -Wall -DNDEBUG -DSHOW_TIMINGS
 LDFLAGS = -ldivsufsort
 
 mk_bwts_sa: mk_bwts_sa.o map_file.o binsearch_sa.o
