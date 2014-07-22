@@ -16,7 +16,14 @@
 #	define MARK_TIME(msg) /*nothing*/
 #endif
 
+#ifdef SHOW_DEBUG
+# define eprintf(...) fprintf(stderr, __VA_ARGS__);
+#else
+# define eprintf(...) /*nothing*/
+#endif
+
 uint32_t binary_search_sa(uint32_t suff, uint8_t *T, uint32_t *sa, uint32_t len);
+//uint32_t linear_search_sa(uint32_t suff, uint8_t *T, uint32_t *sa, uint32_t off, uint32_t len);
 
 void make_bwts_sa(unsigned char *T, int32_t *SA, int len);
 
@@ -69,58 +76,61 @@ int main(int argc, char **argv)
 
 void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 {
-	int min, min_i;
+	int lwar, lwap;
 	int i, j;
 
 	int *lyndonwords = (int *)malloc(sizeof(int) * len);
 
-	int rank, factors=0, last_lw_pos=len;
+	int rank, lwnum=0, last_lw_pos=len;
 	for(rank=0; SA[rank]!=0; rank++) {
 		if(SA[rank] < last_lw_pos) {
 			last_lw_pos = SA[rank];
-			lyndonwords[factors++] = rank;
+			lyndonwords[lwnum++] = rank;
 		}
 	}
 
 	MARK_TIME("Find Lyndon words");
 
-	min = rank;
-	min_i = 0;
+	lwar = rank;
+	lwap = 0;
 
-	while(factors>0) {
-		int isa_i = lyndonwords[--factors];
-		i = SA[isa_i];
+	// Scan LWs: rank->zero, position->len
+	while(lwnum>0) {
+		int lwbr = lyndonwords[--lwnum];
+		int lwbp = SA[lwbr];
 
-		int endsym = T[i-1];
+		int lw_start = lwap;
+		int lw_len = lwbp - lwap;
+
+		int endsym = T[lwbp-1];
 		int pred_pass_count = 0;
 
-		for(j=isa_i; j<min-1; j++) {
-			pred_pass_count += (endsym == T[SA[j+1]-1]);
+		for(j=lwbr+1; j<lwar; j++) {
+			pred_pass_count += (endsym == T[SA[j]-1]);
 		}
 
-		int lw_start = min_i;
-		int lw_len = i - min_i;
-		int test_rank = min;
 
-		while(test_rank+1<len && (SA[test_rank+1] > lw_start+lw_len)) {
+		int initrank = lwar;
+		while(lwar+1<len && (SA[lwar+1] > lw_start+lw_len)) {
 			int k = 0;
-			while((SA[test_rank+1] + k < len) && T[lw_start + (k % lw_len)] == T[SA[test_rank+1] + k]) {
+			while((SA[lwar+1] + k < len) && T[lw_start + (k % lw_len)] == T[SA[lwar+1] + k]) {
 				k++;
 			}
-			if((SA[test_rank+1] + k < len) && T[lw_start + (k % lw_len)] < T[SA[test_rank+1] + k]) {
+			if((SA[lwar+1] + k < len) && T[lw_start + (k % lw_len)] < T[SA[lwar+1] + k]) {
 				break;
 			}
 
-			pred_pass_count += (endsym == T[SA[test_rank+1]-1]);
+			pred_pass_count += (endsym == T[SA[lwar+1]-1]);
 
-			SA[test_rank] = SA[test_rank+1];
-			test_rank++;
+			SA[lwar] = SA[lwar+1];
+			lwar++;
 		}
-		SA[test_rank] = lw_start;
+		SA[lwar] = lw_start;
+		eprintf("head %4d -> %4d (%d)\n", initrank, lwar, lwar - initrank);
 
 
 
-		for(j=i; j-->lw_start+1; ) { // iterate through the new lyndon word from end to start
+		for(j=lwbp; j-->lw_start+1; ) { // iterate through the new lyndon word from end to start
 			int num_to_move_down = pred_pass_count;
 			int k;
 
@@ -130,18 +140,23 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 			pred_pass_count = 0;
 			endsym = T[j-1];
 
-			test_rank = binary_search_sa(j, T, (uint32_t*)SA, len);
-			for(k=0; k<num_to_move_down; k++) {
-				pred_pass_count += (endsym == T[SA[test_rank+1]-1]);
+			uint32_t lwir = binary_search_sa(j, T, (uint32_t*)SA, len);
+      while(SA[lwir] != j) lwir--;
 
-				SA[test_rank] = SA[test_rank+1];
-				test_rank++;
+			int initlwir = lwir;
+			for(k=0; k<num_to_move_down; k++) {
+				pred_pass_count += (endsym == T[SA[lwir+1]-1]);
+
+				SA[lwir] = SA[lwir+1];
+				lwir++;
 			}
-			SA[test_rank] = j;
+			SA[lwir] = j;
+
+			eprintf("tail %4d -> %4d (%d)\n", initlwir, lwir, lwir - initlwir);
 		}
 
-		min = isa_i;
-		min_i = i;
+		lwar = lwbr;
+		lwap = lwbp;
 	}
 
 	MARK_TIME("Fix sort order");

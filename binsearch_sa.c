@@ -1,5 +1,7 @@
 #include <stdint.h>
 #include <sys/param.h>
+#include <assert.h>
+#include <stdio.h>
 
 int suffixcmp(uint32_t s0, uint32_t s1, uint8_t *T, uint32_t len, uint32_t *cp)
 {
@@ -20,7 +22,7 @@ uint32_t binary_search_sa(uint32_t suff, uint8_t *T, uint32_t *sa, uint32_t len)
 	uint32_t imin=0, imax=len-1;
 	uint32_t imin_cp=0, imax_cp=0;
 
-	while (imax >= imin)
+  while (imax > imin)
 	{
 		uint32_t imid = (imax - imin)/2 + imin;
 
@@ -38,6 +40,7 @@ uint32_t binary_search_sa(uint32_t suff, uint8_t *T, uint32_t *sa, uint32_t len)
 			imax_cp = cp;
 		}
 	}
-  return -1;
+
+  return imax;
 }
 
