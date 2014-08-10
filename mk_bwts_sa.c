@@ -105,10 +105,12 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 		int endsym = T[lwbp-1];
 		int pred_pass_count = 0;
 
+    // Simulate move from LWB->LWA, counting like symbols passed in BWT column.
 		for(j=lwbr+1; j<lwar; j++) {
 			pred_pass_count += (endsym == T[SA[j]-1]);
 		}
 
+    // Move LW head down further if necessary, adding like symbols passed in BWT column, if any.
 #ifdef SHOW_DEBUG
 		int initrank = lwar;
 #endif
