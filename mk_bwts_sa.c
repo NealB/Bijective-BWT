@@ -16,14 +16,16 @@
 #	define MARK_TIME(msg) /*nothing*/
 #endif
 
+#define eprintf(...) fprintf(stderr, __VA_ARGS__);
+
+#include "printdebug.h"
 #ifdef SHOW_DEBUG
-# define eprintf(...) fprintf(stderr, __VA_ARGS__);
+# define dbg_printf(...) fprintf(stderr, __VA_ARGS__);
 #else
-# define eprintf(...) /*nothing*/
+# define dbg_printf(...) /*nothing*/
 #endif
 
 uint32_t binary_search_sa(uint32_t suff, uint8_t *T, uint32_t *sa, uint32_t len);
-//uint32_t linear_search_sa(uint32_t suff, uint8_t *T, uint32_t *sa, uint32_t off, uint32_t len);
 
 void make_bwts_sa(unsigned char *T, int32_t *SA, int len);
 
@@ -74,6 +76,13 @@ int main(int argc, char **argv)
 	return 0;
 }
 
+uint32_t rank_suffix(int suff, unsigned char *T, saidx_t *SA, long len) {
+  dbg_printf("$$$$$$ Binary Search $$$$$$\n");
+  uint32_t rank = binary_search_sa(suff, T, (uint32_t *)SA, len);
+  while(SA[rank] != suff) rank--;
+  return rank;
+}
+
 void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 {
 	int lwar, lwap;
@@ -94,8 +103,12 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 	lwar = rank;
 	lwap = 0;
 
+  int lwi = 0;
+
 	// Scan LWs: rank->zero, position->len
 	while(lwnum>0) {
+    DISP_LW(lwi) lwi++;
+
 		int lwbr = lyndonwords[--lwnum];
 		int lwbp = SA[lwbr];
 
@@ -129,35 +142,57 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 			lwar++;
 		}
 		SA[lwar] = lw_start;
-		eprintf("head %4d -> %4d (%d)\n", initrank, lwar, lwar - initrank);
+		DISP_MOVE_HEAD(initrank, lwar);
 
-
-
-		for(j=lwbp; j-->lw_start+1; ) { // iterate through the new lyndon word from end to start
+    int delta = 0;
+    int anchor_pos = lwbp-1;
+    int anchor_rank;
+    while(pred_pass_count > 0) {
+      j = anchor_pos - delta;
+		  if(j <= lw_start) {
+        break;
+      }
 			int num_to_move_down = pred_pass_count;
 			int k;
 
-			if(!num_to_move_down) {
-				break;
-			}
-			pred_pass_count = 0;
-			endsym = T[j-1];
+      if(delta==0) {
+        anchor_rank = rank_suffix(anchor_pos, T, SA, len);
+      }
 
-			uint32_t lwir = binary_search_sa(j, T, (uint32_t*)SA, len);
-      while(SA[lwir] != j) lwir--;
+//count_passes:
+      int new_pass_count = 0;
+      for(k=0; k<num_to_move_down; k++) {
+        new_pass_count += (T[j-1] == T[SA[anchor_rank+1+k]-1-delta]);
+      }
+      dbg_printf(".... num_to_move_down = %d ... passes at position %d: %d\n", num_to_move_down, j, new_pass_count);
 
+      if(new_pass_count == num_to_move_down) {
+        delta++;
+        dbg_printf("<<<< skipping move (%d==%d)\n", num_to_move_down, new_pass_count);
+        continue;
+      }
+      dbg_printf(".... moving down (%d!=%d)\n", num_to_move_down, new_pass_count);
+
+//move_tail_down:
+      int lwir = delta==0 ? anchor_rank : rank_suffix(j, T, SA, len);
 #ifdef SHOW_DEBUG
-			int initlwir = lwir;
+			int init_lwir = lwir;
 #endif
 			for(k=0; k<num_to_move_down; k++) {
-				pred_pass_count += (endsym == T[SA[lwir+1]-1]);
-
 				SA[lwir] = SA[lwir+1];
 				lwir++;
 			}
 			SA[lwir] = j;
 
-			eprintf("tail %4d -> %4d (%d)\n", initlwir, lwir, lwir - initlwir);
+      DISP_MOVE_TAIL(init_lwir, lwir);
+
+      if(new_pass_count == 0) {
+        break;
+      }
+
+      pred_pass_count = new_pass_count;
+      anchor_pos = j-1;
+      delta = 0;
 		}
 
 		lwar = lwbr;

@@ -7,6 +7,14 @@ LDFLAGS = -ldivsufsort
 mk_bwts_sa: mk_bwts_sa.o map_file.o binsearch_sa.o
 	$(CC) -o $@ mk_bwts_sa.o map_file.o binsearch_sa.o $(LDFLAGS)
 
+mk_bwts_sa_newest: mk_bwts_sa_newest.o map_file.o binsearch_sa.o
+	$(CC) -o $@ mk_bwts_sa_newest.o map_file.o binsearch_sa.o $(LDFLAGS)
+
+mk_bwts_sa_orig: mk_bwts_sa_orig.o map_file.o binsearch_sa.o
+	$(CC) -o $@ mk_bwts_sa_orig.o map_file.o binsearch_sa.o $(LDFLAGS)
+
+mk_bwts_sa.o: mk_bwts_sa.c printdebug.h
+
 #mk_bwts_sa_orig: mk_bwts_sa_orig.o map_file.o
 #$(CC) -o $@ mk_bwts_sa_orig.o map_file.o $(LDFLAGS)
 
@@ -21,4 +29,8 @@ BAR: TEST
 
 test: mk_bwts_sa TEST BAR
 	./mk_bwts_sa TEST FOO
+	cmp FOO BAR && echo "Match"
+
+test-orig: mk_bwts_sa_orig TEST BAR
+	./mk_bwts_sa_orig TEST FOO
 	cmp FOO BAR && echo "Match"
