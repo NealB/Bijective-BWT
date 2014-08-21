@@ -19,11 +19,6 @@
 #define eprintf(...) fprintf(stderr, __VA_ARGS__);
 
 #include "printdebug.h"
-#ifdef SHOW_DEBUG
-# define dbg_printf(...) fprintf(stderr, __VA_ARGS__);
-#else
-# define dbg_printf(...) /*nothing*/
-#endif
 
 uint32_t binary_search_sa(uint32_t suff, uint8_t *T, uint32_t *sa, uint32_t len);
 
@@ -51,6 +46,7 @@ int main(int argc, char **argv)
 	if(argc < 2) {
 		fprintf(stderr, "Usage: mk_bwts_sa <infile> [<outfile.bwts>]\n");
 		fprintf(stderr, "If outfile name is -, output is written to standard output\n");
+    fprintf(stderr, "build: %s\n", __TIMESTAMP__);
 		exit(1);
 	}
 
@@ -81,6 +77,12 @@ uint32_t rank_suffix(int suff, unsigned char *T, saidx_t *SA, long len) {
   uint32_t rank = binary_search_sa(suff, T, (uint32_t *)SA, len);
   while(SA[rank] != suff) rank--;
   return rank;
+}
+
+void demote_rank(saidx_t *SA, long initial_rank, long num) {
+  saidx_t value = SA[initial_rank];
+  memmove(&SA[initial_rank], &SA[initial_rank + 1], sizeof(*SA) * num);
+  SA[initial_rank + num] = value;
 }
 
 void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
@@ -124,9 +126,8 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 		}
 
     // Move LW head down further if necessary, adding like symbols passed in BWT column, if any.
-#ifdef SHOW_DEBUG
 		int initrank = lwar;
-#endif
+    dbg_printf("Moving head (if necessary)\n");
 		while(lwar+1<len && (SA[lwar+1] > lw_start+lw_len)) {
 			int k = 0;
 			while((SA[lwar+1] + k < len) && T[lw_start + (k % lw_len)] == T[SA[lwar+1] + k]) {
@@ -138,10 +139,13 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 
 			pred_pass_count += (endsym == T[SA[lwar+1]-1]);
 
-			SA[lwar] = SA[lwar+1];
 			lwar++;
+
+      if(lwar % 16384 == 0) {
+        dbg_printf("... moving head (%d) (examined %d characters)\n", lwar, k);
+      }
 		}
-		SA[lwar] = lw_start;
+    demote_rank(SA, initrank, lwar - initrank);
 		DISP_MOVE_HEAD(initrank, lwar);
 
     int delta = 0;
@@ -175,16 +179,9 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 
 //move_tail_down:
       int lwir = delta==0 ? anchor_rank : rank_suffix(j, T, SA, len);
-#ifdef SHOW_DEBUG
-			int init_lwir = lwir;
-#endif
-			for(k=0; k<num_to_move_down; k++) {
-				SA[lwir] = SA[lwir+1];
-				lwir++;
-			}
-			SA[lwir] = j;
+      demote_rank(SA, lwir, num_to_move_down);
 
-      DISP_MOVE_TAIL(init_lwir, lwir);
+      DISP_MOVE_TAIL(lwir, lwir + num_to_move_down);
 
       if(new_pass_count == 0) {
         break;
