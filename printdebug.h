@@ -4,7 +4,7 @@
 #define eprintf(...) fprintf(stderr, __VA_ARGS__);
 
 #ifdef SHOW_DEBUG
-# define dbg_printf(...) eprintf(stderr, __VA_ARGS__);
+# define dbg_printf(...) eprintf(__VA_ARGS__);
 #else
 # define dbg_printf(...) /*nothing*/
 #endif

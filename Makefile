@@ -1,9 +1,9 @@
 CC = gcc
 #CFLAGS = -O2
-#CPPFLAGS = -DSHOW_DEBUG
-CPPFLAGS =  -DNDEBUG -DSHOW_TIMINGS
+CPPFLAGS = -DSHOW_DEBUG
+#CPPFLAGS =  -DNDEBUG -DSHOW_TIMINGS
 CFLAGS = -O2 -Wall -Wno-maybe-uninitialized
-LDFLAGS = -ldivsufsort
+LDFLAGS = -ldivsufsort -L/usr/local/lib
 
 SOURCES = mk_bwts_sa.c binsearch_sa.c map_file.c
 

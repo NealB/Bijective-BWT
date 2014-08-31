@@ -8,3 +8,5 @@ mk_bwts_sa.o
 binsearch_sa.o
 tags
 *.gcda
+*.exe
+*.d

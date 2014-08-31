@@ -21,6 +21,7 @@
 #include "printdebug.h"
 
 uint32_t binary_search_sa(uint32_t suff, uint8_t *T, uint32_t *sa, uint32_t len);
+uint32_t lw_head_search(uint32_t curr_lw_rank, uint32_t next_lw_rank, uint32_t lw_len, uint8_t *T, uint32_t *sa, uint32_t len);
 
 void make_bwts_sa(unsigned char *T, int32_t *SA, int len);
 
@@ -106,6 +107,7 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 	lwap = 0;
 
   int lwi = 0;
+  int lwzr = len; // rank of the next LW after lwa
 
 	// Scan LWs: rank->zero, position->len
 	while(lwnum>0) {
@@ -117,6 +119,16 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 		int lw_start = lwap;
 		int lw_len = lwbp - lwap;
 
+    // Move LW head down further if necessary, adding like symbols passed in BWT column, if any.
+		int initrank = lwar;
+
+    lwar = lw_head_search(lwar, lwzr, lw_len, T, SA, len);
+
+    if(lwar != initrank) {
+      demote_rank(SA, initrank, lwar - initrank);
+    }
+		DISP_MOVE_HEAD(initrank, lwar);
+
 		int endsym = T[lwbp-1];
 		int pred_pass_count = 0;
 
@@ -124,29 +136,6 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 		for(j=lwbr+1; j<lwar; j++) {
 			pred_pass_count += (endsym == T[SA[j]-1]);
 		}
-
-    // Move LW head down further if necessary, adding like symbols passed in BWT column, if any.
-		int initrank = lwar;
-    dbg_printf("Moving head (if necessary)\n");
-		while(lwar+1<len && (SA[lwar+1] > lw_start+lw_len)) {
-			int k = 0;
-			while((SA[lwar+1] + k < len) && T[lw_start + (k % lw_len)] == T[SA[lwar+1] + k]) {
-				k++;
-			}
-			if((SA[lwar+1] + k < len) && T[lw_start + (k % lw_len)] < T[SA[lwar+1] + k]) {
-				break;
-			}
-
-			pred_pass_count += (endsym == T[SA[lwar+1]-1]);
-
-			lwar++;
-
-      if(lwar % 16384 == 0) {
-        dbg_printf("... moving head (%d) (examined %d characters)\n", lwar, k);
-      }
-		}
-    demote_rank(SA, initrank, lwar - initrank);
-		DISP_MOVE_HEAD(initrank, lwar);
 
     int delta = 0;
     int anchor_pos = lwbp-1;
@@ -192,6 +181,7 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
       delta = 0;
 		}
 
+    lwzr = lwar;
 		lwar = lwbr;
 		lwap = lwbp;
 	}
