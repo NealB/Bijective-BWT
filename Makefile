@@ -1,14 +1,18 @@
 CC = gcc
 #CFLAGS = -O2
-CPPFLAGS = -DSHOW_DEBUG
-#CPPFLAGS =  -DNDEBUG -DSHOW_TIMINGS
+#CPPFLAGS = -DSHOW_DEBUG
+CPPFLAGS =  -DNDEBUG -DSHOW_TIMINGS
 CFLAGS = -O2 -Wall -Wno-maybe-uninitialized
 LDFLAGS = -ldivsufsort -L/usr/local/lib
 
 SOURCES = mk_bwts_sa.c binsearch_sa.c map_file.c
 
-mk_bwts_sa: $(SOURCES:.c=.o)
+mk_bwts: $(SOURCES:.c=.o)
 	$(CC) -o $@ $^ $(LDFLAGS)
+
+debug: CFLAGS = -ggdb -Wall -Wno-maybe-uninitialized
+debug: CPPFLAGS =
+debug: mk_bwts
 
 #mk_bwts_sa_orig: mk_bwts_sa_orig.o map_file.o binsearch_sa.o
 #$(CC) -o $@ mk_bwts_sa_orig.o map_file.o binsearch_sa.o $(LDFLAGS)
@@ -16,19 +20,19 @@ mk_bwts_sa: $(SOURCES:.c=.o)
 %.d: %.c
 	$(CC) -MM $(CPPFLAGS) $< | sed 's/\(.*\):\(.*\)/\1 $@:\2/' > $@
 
-.PHONY: install clean test test-orig
+.PHONY: install clean test test-orig debug
 
-install: mk_bwts_sa
-	cp mk_bwts_sa $(HOME)/bin/
+install: mk_bwts
+	cp mk_bwts $(HOME)/bin/
 
 clean:
-	$(RM) *.o *.d mk_bwts_sa FOO BAR
+	$(RM) *.o *.d mk_bwts FOO BAR
 
 BAR: TEST
 	mk_bwts TEST BAR 
 
-test: mk_bwts_sa TEST BAR
-	./mk_bwts_sa TEST FOO
+test: mk_bwts TEST BAR
+	./mk_bwts TEST FOO
 	cmp FOO BAR && echo "Match"
 
 #test-orig: mk_bwts_sa_orig TEST BAR
