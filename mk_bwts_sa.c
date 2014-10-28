@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <divsufsort.h>
 #include <stdint.h>
+#include <assert.h>
 #include "map_file.h"
 
 #define BWTS_EXTENSION ".bwts"
@@ -20,8 +21,8 @@
 
 #include "printdebug.h"
 
-uint32_t binary_search_sa(uint32_t suff, uint8_t *T, uint32_t *sa, uint32_t len);
-uint32_t lw_head_search(uint32_t curr_lw_rank, uint32_t next_lw_rank, uint32_t lw_len, uint8_t *T, uint32_t *sa, uint32_t len);
+int32_t binary_search_sa(int32_t suff, uint8_t *T, int32_t *sa, int32_t len);
+int32_t lw_head_search(int32_t curr_lw_rank, int32_t next_lw_rank, int32_t lw_len, uint8_t *T, int32_t *sa, int32_t len);
 
 void make_bwts_sa(unsigned char *T, int32_t *SA, int len);
 
@@ -59,7 +60,12 @@ int main(int argc, char **argv)
 
 	map_in(T, len, argv[1]);
 
-	int32_t *SA = (int32_t *)malloc(sizeof(int32_t) * len);
+	size_t SAbs = sizeof(int32_t) * len;
+	int32_t *SA = (int32_t *)malloc(SAbs);
+	if(SA == NULL) {
+		fprintf(stderr, "Failed to allocate %ld bytes. Abort.\n", SAbs);
+		exit(1);
+	}
 	divsufsort(T, SA, len);
 
 	MARK_TIME("Suffix sort");
@@ -73,9 +79,9 @@ int main(int argc, char **argv)
 	return 0;
 }
 
-uint32_t rank_suffix(int suff, unsigned char *T, saidx_t *SA, long len) {
+int32_t rank_suffix(int suff, unsigned char *T, saidx_t *SA, long len) {
   dbg_printf("$$$$$$ Binary Search $$$$$$\n");
-  uint32_t rank = binary_search_sa(suff, T, (uint32_t *)SA, len);
+  int32_t rank = binary_search_sa(suff, T, SA, len);
   while(SA[rank] != suff) rank--;
   return rank;
 }
@@ -91,7 +97,12 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 	int lwar, lwap;
 	int i, j;
 
-	int *lyndonwords = (int *)malloc(sizeof(int) * len);
+	size_t LWbs = sizeof(int) * len;
+	int *lyndonwords = (int *)malloc(LWbs);
+	if(lyndonwords == NULL) {
+		fprintf(stderr, "Failed to allocate %ld bytes. Abort.\n", LWbs);
+		exit(1);
+	}
 
 	int rank, lwnum=0, last_lw_pos=len;
 	for(rank=0; SA[rank]!=0; rank++) {
