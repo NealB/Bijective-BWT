@@ -63,7 +63,7 @@ int main(int argc, char **argv)
 	size_t SAbs = sizeof(int32_t) * len;
 	int32_t *SA = (int32_t *)map_temp_writable(SAbs);
 	if(SA == NULL) {
-		fprintf(stderr, "Failed to allocate %ld bytes. Abort.\n", SAbs);
+		fprintf(stderr, "Failed to allocate %ld bytes for suffix array. Abort.\n", SAbs);
 		exit(1);
 	}
 	divsufsort(T, SA, len);
@@ -100,7 +100,7 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 	size_t LWbs = sizeof(int) * len;
 	int *lyndonwords = (int *)map_temp_writable(LWbs);
 	if(lyndonwords == NULL) {
-		fprintf(stderr, "Failed to allocate %ld bytes. Abort.\n", LWbs);
+		fprintf(stderr, "Failed to allocate %ld bytes for lyndon word starting indices. Abort.\n", LWbs);
 		exit(1);
 	}
 

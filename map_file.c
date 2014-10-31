@@ -50,19 +50,19 @@ void *map_temp_writable(size_t size)
 
 	if((fp = tmpfile()) == NULL) {
 		perror("Attempting to create temporary file");
-		exit(EXIT_FAILURE);
+    return NULL;
 	}
 
 	/* Set the file size. */
 	if(ftruncate(fileno(fp), size) != 0) {
-		perror(NULL);
-		exit(EXIT_FAILURE);
+		perror("ftruncate");
+    return NULL;
 	}
 
 	location = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fileno(fp), 0);
 	if(location == MAP_FAILED) {
 		perror("Attempting to map temporary file");
-		exit(EXIT_FAILURE);
+    return NULL;
 	}
 
   return location;
