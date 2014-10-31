@@ -5,15 +5,10 @@
 extern "C" {
 #endif
 
-typedef struct {
-	void *sp, *ep;
-} ptr_range;
+void map_input_file(const char *filename, void **start, long *len);
+void *map_temp_writable(size_t size);
 
-ptr_range map_input_file(const char *filename);
-void map_input_file2(const char *filename, void **start, long *len);
-void unmap_file(ptr_range extent);
-
-#define map_in(ptr, len, path) map_input_file2(path, (void**)&ptr, &len), len /= sizeof(*ptr)
+#define map_in(ptr, len, path) map_input_file(path, (void**)&ptr, &len), len /= sizeof(*ptr)
 
 #ifdef __cplusplus
 }

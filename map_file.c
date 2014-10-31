@@ -7,13 +7,10 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <sys/mman.h>
+#include <unistd.h>
 
 
-typedef struct {
-	void *sp, *ep;
-} ptr_range;
-
-void map_input_file2(const char *filename, void **start, long *len)
+void map_input_file(const char *filename, void **start, long *len)
 {
 	FILE *fp;
 	long n;
@@ -45,15 +42,28 @@ void map_input_file2(const char *filename, void **start, long *len)
 	*len = n;
 }
 
-ptr_range map_input_file(const char *filename)
-{
-	void *start;
-	long nbytes;
-       	map_input_file2(filename, &start, &nbytes);
-	return (ptr_range){ start, start + nbytes };
-}
 
-void unmap_file(ptr_range extent)
+void *map_temp_writable(size_t size)
 {
-	munmap(extent.sp, extent.ep - extent.sp);
+	FILE *fp;
+	void *location;
+
+	if((fp = tmpfile()) == NULL) {
+		perror("Attempting to create temporary file");
+		exit(EXIT_FAILURE);
+	}
+
+	/* Set the file size. */
+	if(ftruncate(fileno(fp), size) != 0) {
+		perror(NULL);
+		exit(EXIT_FAILURE);
+	}
+
+	location = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fileno(fp), 0);
+	if(location == MAP_FAILED) {
+		perror("Attempting to map temporary file");
+		exit(EXIT_FAILURE);
+	}
+
+  return location;
 }

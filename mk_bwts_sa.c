@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 	map_in(T, len, argv[1]);
 
 	size_t SAbs = sizeof(int32_t) * len;
-	int32_t *SA = (int32_t *)malloc(SAbs);
+	int32_t *SA = (int32_t *)map_temp_writable(SAbs);
 	if(SA == NULL) {
 		fprintf(stderr, "Failed to allocate %ld bytes. Abort.\n", SAbs);
 		exit(1);
@@ -98,7 +98,7 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 	int i, j;
 
 	size_t LWbs = sizeof(int) * len;
-	int *lyndonwords = (int *)malloc(LWbs);
+	int *lyndonwords = (int *)map_temp_writable(LWbs);
 	if(lyndonwords == NULL) {
 		fprintf(stderr, "Failed to allocate %ld bytes. Abort.\n", LWbs);
 		exit(1);
