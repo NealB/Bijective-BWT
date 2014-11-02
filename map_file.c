@@ -59,7 +59,7 @@ void *map_temp_writable(size_t size)
     return NULL;
 	}
 
-	location = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE, fileno(fp), 0);
+	location = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, fileno(fp), 0);
 	if(location == MAP_FAILED) {
 		perror("Attempting to map temporary file");
     return NULL;
