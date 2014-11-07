@@ -1,18 +1,22 @@
 CC = gcc
-#CFLAGS = -O2
 #CPPFLAGS = -DSHOW_DEBUG
-CPPFLAGS =  -DNDEBUG -DSHOW_TIMINGS
-CFLAGS = -O2 -Wall -Wno-maybe-uninitialized
+#CPPFLAGS =  -DNDEBUG -DSHOW_TIMINGS
+CFLAGS = -Wall -Wno-maybe-uninitialized -DSHOW_DEBUG
 LDFLAGS = -ldivsufsort -L/usr/local/lib
 
 SOURCES = mk_bwts_sa.c binsearch_sa.c map_file.c
 
+all: optimized
+
+optimized: CFLAGS += -O2
+optimized: CPPFLAGS = -DNDEBUG
+optimized: mk_bwts
+
+debug: CFLAGS += -ggdb
+debug: mk_bwts
+
 mk_bwts: $(SOURCES:.c=.o)
 	$(CC) -o $@ $^ $(LDFLAGS)
-
-debug: CFLAGS = -ggdb -Wall -Wno-maybe-uninitialized
-debug: CPPFLAGS =
-debug: mk_bwts
 
 #mk_bwts_sa_orig: mk_bwts_sa_orig.o map_file.o binsearch_sa.o
 #$(CC) -o $@ mk_bwts_sa_orig.o map_file.o binsearch_sa.o $(LDFLAGS)
@@ -20,7 +24,7 @@ debug: mk_bwts
 %.d: %.c
 	$(CC) -MM $(CPPFLAGS) $< | sed 's/\(.*\):\(.*\)/\1 $@:\2/' > $@
 
-.PHONY: install clean test test-orig debug
+.PHONY: install clean test test-orig debug optimized
 
 install: mk_bwts
 	cp mk_bwts $(HOME)/bin/

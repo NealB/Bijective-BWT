@@ -1,21 +1,21 @@
+#define _GNU_SOURCE
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
 #include <divsufsort.h>
 #include <stdint.h>
+#include <libgen.h>
 #include <assert.h>
 #include "map_file.h"
 
 #define BWTS_EXTENSION ".bwts"
 
-#ifdef SHOW_TIMINGS
-#	include <time.h>
-	static clock_t t, last_t, first_t;
-#	define MARK_TIME(msg) \
+#include <time.h>
+static clock_t t, last_t, first_t;
+#define INIT_TIME \
+    first_t = t = clock();
+#define MARK_TIME(msg) \
 		last_t=t, fprintf(stderr, "%-25s %6.2f\n", msg " time", (double)((t=clock()) - last_t) / (double)CLOCKS_PER_SEC);
-#else
-#	define MARK_TIME(msg) /*nothing*/
-#endif
 
 #define eprintf(...) fprintf(stderr, __VA_ARGS__);
 
@@ -26,22 +26,27 @@ int32_t lw_head_search(int32_t curr_lw_rank, int32_t next_lw_rank, int32_t lw_le
 
 void make_bwts_sa(unsigned char *T, int32_t *SA, int len);
 
-char *bwts_outfilename;
+FILE *bwtsout;
 
-void make_outfilename(int argc, char **argv)
+char *get_outfilename(int argc, char **argv)
 {
-	if(argc < 3) {
-		bwts_outfilename = (char *)malloc(strlen(BWTS_EXTENSION) + strlen(argv[1]) + 1);
-		strcpy(bwts_outfilename, argv[1]);
-		strcat(bwts_outfilename, BWTS_EXTENSION);
+	if(argc >= 3) {
+    return argv[2];
 	}
-	else {
-		bwts_outfilename = argv[2];
-	}
+  else {
+    char *outnamebuf, s[strlen(argv[1]) + 1];
+    strcpy(s, argv[1]);
+    if(asprintf(&outnamebuf, "%s%s", basename(s), BWTS_EXTENSION) == -1) {
+      eprintf("Failed to create output filename. Abort.\n");
+      exit(1);
+    }
+    return outnamebuf;
+  }
 }
 
 int main(int argc, char **argv)
 {
+  char *bwts_outfilename;
 	unsigned char *T;
 	long len;
 
@@ -52,13 +57,22 @@ int main(int argc, char **argv)
 		exit(1);
 	}
 
-#ifdef SHOW_TIMINGS
-	first_t = t = clock();
-#endif
+  INIT_TIME;
 
-	make_outfilename(argc, argv);
+	bwts_outfilename = get_outfilename(argc, argv);
 
 	map_in(T, len, argv[1]);
+  if(T == NULL) {
+    eprintf("Failed to mmap input file. Abort.\n");
+    exit(1);
+  }
+
+	bwtsout = (strcmp(bwts_outfilename, "-")==0) ? stdout : fopen(bwts_outfilename, "w");
+	if(!bwtsout) {
+		perror(bwts_outfilename);
+		eprintf("Couldn't open BWTS file for writing\n");
+		exit(1);
+	}
 
 	size_t SAbs = sizeof(int32_t) * len;
 	int32_t *SA = (int32_t *)malloc(SAbs);
@@ -80,7 +94,7 @@ int main(int argc, char **argv)
 }
 
 int32_t rank_suffix(int suff, unsigned char *T, saidx_t *SA, long len) {
-  dbg_printf("$$$$$$ Binary Search $$$$$$\n");
+  vdbg_printf("$$$$$$ Binary Search $$$$$$\n");
   int32_t rank = binary_search_sa(suff, T, SA, len);
   while(SA[rank] != suff) rank--;
   return rank;
@@ -112,9 +126,9 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 		}
 	}
 
-  dbg_printf("Lyndon word count: %d\n", lwnum);
-
 	MARK_TIME("Find Lyndon words");
+
+  dbg_printf("Lyndon word count: %d\n", lwnum);
 
 	lwar = rank;
 	lwap = 0;
@@ -170,14 +184,14 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
       for(k=0; k<num_to_move_down; k++) {
         new_pass_count += (T[j-1] == T[SA[anchor_rank+1+k]-1-delta]);
       }
-      dbg_printf(".... num_to_move_down = %d ... passes at position %d: %d\n", num_to_move_down, j, new_pass_count);
+      vdbg_printf(".... num_to_move_down = %d ... passes at position %d: %d\n", num_to_move_down, j, new_pass_count);
 
       if(new_pass_count == num_to_move_down) {
         delta++;
-        dbg_printf("<<<< skipping move (%d==%d)\n", num_to_move_down, new_pass_count);
+        vdbg_printf("<<<< skipping move (%d==%d)\n", num_to_move_down, new_pass_count);
         continue;
       }
-      dbg_printf(".... moving down (%d!=%d)\n", num_to_move_down, new_pass_count);
+      vdbg_printf(".... moving down (%d!=%d)\n", num_to_move_down, new_pass_count);
 
 //move_tail_down:
       int lwir = delta==0 ? anchor_rank : rank_suffix(j, T, SA, len);
@@ -200,13 +214,6 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 	}
 
 	MARK_TIME("Fix sort order");
-
-	FILE *bwtsout = (strcmp(bwts_outfilename, "-")==0) ? stdout : fopen(bwts_outfilename, "w");
-	if(!bwtsout) {
-		fprintf(stderr, "Couldn't open BWTS file for writing\n");
-		perror(bwts_outfilename);
-		exit(1);
-	}
 
 	last_lw_pos = len;
 	for(i=0; i<len; i++) {

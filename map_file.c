@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <strings.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -12,34 +13,34 @@
 
 void map_input_file(const char *filename, void **start, long *len)
 {
-	FILE *fp;
-	long n;
-	void *location;
+	int fd;
+	off_t off;
+	void *pos;
 
-	if((fp = fopen(filename, "rb")) == NULL) {
-		perror(filename);
-		exit(EXIT_FAILURE);
+	if((fd = open(filename, O_RDONLY)) == -1) {
+		goto fail;
 	}
 
 	/* Get the file size. */
-	if(fseek(fp, 0, SEEK_END) == 0) {
-		n = ftell(fp);
-	}
-	else {
-		perror(NULL);
-		exit(EXIT_FAILURE);
+	if((off = lseek(fd, 0, SEEK_END)) == -1) {
+		goto fail;
 	}
 
-	location = mmap(NULL, n, PROT_READ, MAP_FILE | MAP_PRIVATE, fileno(fp), 0);
-	if(location == MAP_FAILED) {
-		perror(filename);
-		exit(1);
+	if((pos = mmap(NULL, off, PROT_READ, MAP_FILE | MAP_PRIVATE, fd, 0)) == MAP_FAILED) {
+		goto fail;
 	}
 
-	fclose(fp);
+	close(fd);
+	*len = off;
+	*start = pos;
+	return;
 
-	*start = location;
-	*len = n;
+fail:
+	perror(filename);
+	if(fd > -1) {
+		close(fd);
+	}
+	*start = NULL;
 }
 
 
