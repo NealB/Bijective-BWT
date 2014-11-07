@@ -10,3 +10,5 @@ tags
 *.gcda
 *.exe
 *.d
+enwik*
+mk_bwts

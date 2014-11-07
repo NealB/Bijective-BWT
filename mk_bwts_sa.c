@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 	map_in(T, len, argv[1]);
 
 	size_t SAbs = sizeof(int32_t) * len;
-	int32_t *SA = (int32_t *)map_temp_writable(SAbs);
+	int32_t *SA = (int32_t *)malloc(SAbs);
 	if(SA == NULL) {
 		fprintf(stderr, "Failed to allocate %ld bytes for suffix array. Abort.\n", SAbs);
 		exit(1);
@@ -98,7 +98,7 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 	int i, j;
 
 	size_t LWbs = sizeof(int) * len;
-	int *lyndonwords = (int *)map_temp_writable(LWbs);
+	int *lyndonwords = (int *)malloc(LWbs);
 	if(lyndonwords == NULL) {
 		fprintf(stderr, "Failed to allocate %ld bytes for lyndon word starting indices. Abort.\n", LWbs);
 		exit(1);
@@ -111,6 +111,8 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
 			lyndonwords[lwnum++] = rank;
 		}
 	}
+
+  dbg_printf("Lyndon word count: %d\n", lwnum);
 
 	MARK_TIME("Find Lyndon words");
 
