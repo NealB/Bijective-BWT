@@ -9,7 +9,7 @@ SOURCES = mk_bwts_sa.c binsearch_sa.c map_file.c
 all: optimized
 
 optimized: CFLAGS += -O2
-optimized: CPPFLAGS = -DNDEBUG
+optimized: CPPFLAGS = -DNDEBUG -DSHOW_TIMINGS
 optimized: mk_bwts
 
 debug: CFLAGS += -ggdb

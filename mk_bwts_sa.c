@@ -106,42 +106,44 @@ void demote_rank(saidx_t *SA, long initial_rank, long num) {
   SA[initial_rank + num] = value;
 }
 
-void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
-{
-	int lwar, lwap;
-	int i, j;
-
-	size_t LWbs = sizeof(int) * len;
-	int *lyndonwords = (int *)malloc(LWbs);
-	if(lyndonwords == NULL) {
-		fprintf(stderr, "Failed to allocate %ld bytes for lyndon word starting indices. Abort.\n", LWbs);
-		exit(1);
-	}
-
-	int rank, lwnum=0, last_lw_pos=len;
-	for(rank=0; SA[rank]!=0; rank++) {
-		if(SA[rank] < last_lw_pos) {
-			last_lw_pos = SA[rank];
-			lyndonwords[lwnum++] = rank;
+void output_bwts(unsigned char *T, int32_t *SA, int len) {
+	int last_lw_pos = len;
+  int i;
+	for(i=0; i<len; i++) {
+		int outc;
+		if(SA[i] < last_lw_pos) {
+			outc = T[last_lw_pos-1];
+			last_lw_pos = SA[i];
 		}
+		else {
+			outc = T[SA[i]-1];
+		}
+		putc_unlocked(outc, bwtsout);
 	}
 
-	MARK_TIME("Find Lyndon words");
+	MARK_TIME("Write BWTS");
+}
 
-  dbg_printf("Lyndon word count: %d\n", lwnum);
+void process_lw(unsigned char *T, int32_t *SA, int len, int next_lwp) {
+	static int lwap = 0;
+	static int lwar;
+  static int lwzr; // rank of the next LW after lwa
 
-	lwar = rank;
-	lwap = 0;
-
-  int lwi = 0;
-  int lwzr = len; // rank of the next LW after lwa
+  if(lwap == 0) {
+    lwar = rank_suffix(0, T, SA, len);
+    lwzr = len;
+  }
 
 	// Scan LWs: rank->zero, position->len
-	while(lwnum>0) {
-    DISP_LW(lwi) lwi++;
+	//while(lwnum>0) {
+    int j;
 
-		int lwbr = lyndonwords[--lwnum];
-		int lwbp = SA[lwbr];
+		//int lwbr = lyndonwords[--lwnum];
+		//int lwbp = SA[lwbr];
+		int lwbp = next_lwp;
+		int lwbr;
+    for(lwbr=lwar-1; SA[lwbr]!=lwbp; lwbr--);
+    assert(SA[lwbr]==lwbp);
 
 		int lw_start = lwap;
 		int lw_len = lwbp - lwap;
@@ -211,22 +213,27 @@ void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
     lwzr = lwar;
 		lwar = lwbr;
 		lwap = lwbp;
+	//}
+}
+
+void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
+{
+	int k = 0;
+	while( k < len ) {
+    int i = k, j = k+1;
+		for(; j < len && T[i] <= T[j]; j++) {
+      i = (T[i] < T[j]) ? k : i+1;
+		}
+
+    for(; k <= i; k += j-i) {
+      int next_lwp = (k + j-i);
+      if(next_lwp < len) {
+        process_lw(T, SA, len, next_lwp);
+      }
+    }
 	}
 
 	MARK_TIME("Fix sort order");
 
-	last_lw_pos = len;
-	for(i=0; i<len; i++) {
-		int outc;
-		if(SA[i] < last_lw_pos) {
-			outc = T[last_lw_pos-1];
-			last_lw_pos = SA[i];
-		}
-		else {
-			outc = T[SA[i]-1];
-		}
-		putc_unlocked(outc, bwtsout);
-	}
-
-	MARK_TIME("Write BWTS");
+  output_bwts(T, SA, len);
 }
