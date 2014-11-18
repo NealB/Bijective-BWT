@@ -99,6 +99,92 @@ void demote_rank(saidx_t *SA, long initial_rank, long num) {
   SA[initial_rank + num] = value;
 }
 
+void process_lw(unsigned char *T, int32_t *SA, int len, int next_lwp) {
+	static int lwap = 0;
+	static int lwar;
+  static int lwzr; // rank of the next LW after lwa
+  int j;
+
+  if(lwap == 0) {
+    lwar = rank_suffix(0, T, SA, len);
+    lwzr = len;
+  }
+
+  int lwbp = next_lwp;
+  int lwbr;
+  for(lwbr=lwar-1; SA[lwbr]!=lwbp; lwbr--);
+  assert(SA[lwbr]==lwbp);
+
+  int lw_start = lwap;
+  int lw_len = lwbp - lwap;
+
+  // Move LW head down further if necessary, adding like symbols passed in BWT column, if any.
+  int initrank = lwar;
+
+  lwar = lw_head_search(lwar, lwzr, lw_len, T, SA, len);
+
+  if(lwar != initrank) {
+    demote_rank(SA, initrank, lwar - initrank);
+  }
+  DISP_MOVE_HEAD(initrank, lwar);
+
+  int endsym = T[lwbp-1];
+  int pred_pass_count = 0;
+
+  // Simulate move from LWB->LWA, counting like symbols passed in BWT column.
+  for(j=lwbr+1; j<lwar; j++) {
+    pred_pass_count += (endsym == T[SA[j]-1]);
+  }
+
+  int delta = 0;
+  int anchor_pos = lwbp-1;
+  int anchor_rank;
+  while(pred_pass_count > 0) {
+    j = anchor_pos - delta;
+    if(j <= lw_start) {
+      break;
+    }
+    int num_to_move_down = pred_pass_count;
+    int k;
+
+    if(delta==0) {
+      anchor_rank = rank_suffix(anchor_pos, T, SA, len);
+    }
+
+//count_passes:
+    int new_pass_count = 0;
+    for(k=0; k<num_to_move_down; k++) {
+      new_pass_count += (T[j-1] == T[SA[anchor_rank+1+k]-1-delta]);
+    }
+    vdbg_printf(".... num_to_move_down = %d ... passes at position %d: %d\n", num_to_move_down, j, new_pass_count);
+
+    if(new_pass_count == num_to_move_down) {
+      delta++;
+      vdbg_printf("<<<< skipping move (%d==%d)\n", num_to_move_down, new_pass_count);
+      continue;
+    }
+    vdbg_printf(".... moving down (%d!=%d)\n", num_to_move_down, new_pass_count);
+
+//move_tail_down:
+    int lwir = delta==0 ? anchor_rank : rank_suffix(j, T, SA, len);
+    demote_rank(SA, lwir, num_to_move_down);
+
+    DISP_MOVE_TAIL(lwir, lwir + num_to_move_down);
+
+    if(new_pass_count == 0) {
+      break;
+    }
+
+    pred_pass_count = new_pass_count;
+    anchor_pos = j-1;
+    delta = 0;
+  }
+
+  lwzr = lwar;
+  lwar = lwbr;
+  lwap = lwbp;
+}
+
 void output_bwts(unsigned char *T, int32_t *SA, int len) {
 	int last_lw_pos = len;
   int i;
@@ -115,98 +201,6 @@ void output_bwts(unsigned char *T, int32_t *SA, int len) {
 	}
 
 	MARK_TIME("Write BWTS");
-}
-
-void process_lw(unsigned char *T, int32_t *SA, int len, int next_lwp) {
-	static int lwap = 0;
-	static int lwar;
-  static int lwzr; // rank of the next LW after lwa
-
-  if(lwap == 0) {
-    lwar = rank_suffix(0, T, SA, len);
-    lwzr = len;
-  }
-
-	// Scan LWs: rank->zero, position->len
-	//while(lwnum>0) {
-    int j;
-
-		//int lwbr = lyndonwords[--lwnum];
-		//int lwbp = SA[lwbr];
-		int lwbp = next_lwp;
-		int lwbr;
-    for(lwbr=lwar-1; SA[lwbr]!=lwbp; lwbr--);
-    assert(SA[lwbr]==lwbp);
-
-		int lw_start = lwap;
-		int lw_len = lwbp - lwap;
-
-    // Move LW head down further if necessary, adding like symbols passed in BWT column, if any.
-		int initrank = lwar;
-
-    lwar = lw_head_search(lwar, lwzr, lw_len, T, SA, len);
-
-    if(lwar != initrank) {
-      demote_rank(SA, initrank, lwar - initrank);
-    }
-		DISP_MOVE_HEAD(initrank, lwar);
-
-		int endsym = T[lwbp-1];
-		int pred_pass_count = 0;
-
-    // Simulate move from LWB->LWA, counting like symbols passed in BWT column.
-		for(j=lwbr+1; j<lwar; j++) {
-			pred_pass_count += (endsym == T[SA[j]-1]);
-		}
-
-    int delta = 0;
-    int anchor_pos = lwbp-1;
-    int anchor_rank;
-    while(pred_pass_count > 0) {
-      j = anchor_pos - delta;
-		  if(j <= lw_start) {
-        break;
-      }
-			int num_to_move_down = pred_pass_count;
-			int k;
-
-      if(delta==0) {
-        anchor_rank = rank_suffix(anchor_pos, T, SA, len);
-      }
-
-//count_passes:
-      int new_pass_count = 0;
-      for(k=0; k<num_to_move_down; k++) {
-        new_pass_count += (T[j-1] == T[SA[anchor_rank+1+k]-1-delta]);
-      }
-      vdbg_printf(".... num_to_move_down = %d ... passes at position %d: %d\n", num_to_move_down, j, new_pass_count);
-
-      if(new_pass_count == num_to_move_down) {
-        delta++;
-        vdbg_printf("<<<< skipping move (%d==%d)\n", num_to_move_down, new_pass_count);
-        continue;
-      }
-      vdbg_printf(".... moving down (%d!=%d)\n", num_to_move_down, new_pass_count);
-
-//move_tail_down:
-      int lwir = delta==0 ? anchor_rank : rank_suffix(j, T, SA, len);
-      demote_rank(SA, lwir, num_to_move_down);
-
-      DISP_MOVE_TAIL(lwir, lwir + num_to_move_down);
-
-      if(new_pass_count == 0) {
-        break;
-      }
-
-      pred_pass_count = new_pass_count;
-      anchor_pos = j-1;
-      delta = 0;
-		}
-
-    lwzr = lwar;
-		lwar = lwbr;
-		lwap = lwbp;
-	//}
 }
 
 void make_bwts_sa(unsigned char *T, int32_t *SA, int len)
