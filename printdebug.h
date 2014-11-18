@@ -1,7 +1,9 @@
 #ifndef __PRINTDEBUG_H
 #define __PRINTDEBUG_H
 
-#define eprintf(...) fprintf(stderr, __VA_ARGS__);
+#ifndef eprintf
+#  define eprintf(...) fprintf(stderr, __VA_ARGS__);
+#endif
 
 #if defined(SHOW_DEBUG)
 # define dbg_printf(...) eprintf(__VA_ARGS__);

@@ -7,19 +7,14 @@
 #include <libgen.h>
 #include <assert.h>
 #include "map_file.h"
+#include "printtimings.h"
+#include "printdebug.h"
 
 #define BWTS_EXTENSION ".bwts"
 
-#include <time.h>
-static clock_t t, last_t, first_t;
-#define INIT_TIME \
-    first_t = t = clock();
-#define MARK_TIME(msg) \
-		last_t=t, fprintf(stderr, "%-25s %6.2f\n", msg " time", (double)((t=clock()) - last_t) / (double)CLOCKS_PER_SEC);
-
-#define eprintf(...) fprintf(stderr, __VA_ARGS__);
-
-#include "printdebug.h"
+#ifndef eprintf
+#  define eprintf(...) fprintf(stderr, __VA_ARGS__);
+#endif
 
 int32_t binary_search_sa(int32_t suff, uint8_t *T, int32_t *sa, int32_t len);
 int32_t lw_head_search(int32_t curr_lw_rank, int32_t next_lw_rank, int32_t lw_len, uint8_t *T, int32_t *sa, int32_t len);
@@ -51,9 +46,9 @@ int main(int argc, char **argv)
 	long len;
 
 	if(argc < 2) {
-		fprintf(stderr, "Usage: mk_bwts_sa <infile> [<outfile.bwts>]\n");
-		fprintf(stderr, "If outfile name is -, output is written to standard output\n");
-    fprintf(stderr, "build: %s\n", __TIMESTAMP__);
+		eprintf("Usage: mk_bwts_sa <infile> [<outfile.bwts>]\n");
+		eprintf("If outfile name is -, output is written to standard output\n");
+    eprintf("build: %s\n", __TIMESTAMP__);
 		exit(1);
 	}
 
@@ -77,7 +72,7 @@ int main(int argc, char **argv)
 	size_t SAbs = sizeof(int32_t) * len;
 	int32_t *SA = (int32_t *)malloc(SAbs);
 	if(SA == NULL) {
-		fprintf(stderr, "Failed to allocate %ld bytes for suffix array. Abort.\n", SAbs);
+		eprintf("Failed to allocate %ld bytes for suffix array. Abort.\n", SAbs);
 		exit(1);
 	}
 	divsufsort(T, SA, len);
@@ -86,9 +81,7 @@ int main(int argc, char **argv)
 
 	make_bwts_sa(T, SA, len);
 
-#ifdef SHOW_TIMINGS
-	fprintf(stderr, "%-25s %6.2f\n", "Total time", (double)(clock() - first_t) / (double)CLOCKS_PER_SEC);
-#endif
+  TOTAL_TIME;
 
 	return 0;
 }

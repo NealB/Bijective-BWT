@@ -1,16 +1,18 @@
 CC = gcc
-#CPPFLAGS = -DSHOW_DEBUG
-#CPPFLAGS =  -DNDEBUG -DSHOW_TIMINGS
 CFLAGS = -Wall -Wno-maybe-uninitialized -DSHOW_DEBUG
 LDFLAGS = -ldivsufsort -L/usr/local/lib
 
 SOURCES = mk_bwts_sa.c binsearch_sa.c map_file.c
 
-all: optimized
+all: timings
 
 optimized: CFLAGS += -O2
-optimized: CPPFLAGS = -DNDEBUG -DSHOW_TIMINGS
+optimized: CPPFLAGS = -DNDEBUG
 optimized: mk_bwts
+
+timings: CFLAGS += -O2
+timings: CPPFLAGS = -DNDEBUG -DSHOW_TIMINGS
+timings: mk_bwts
 
 debug: CFLAGS += -ggdb
 debug: mk_bwts
