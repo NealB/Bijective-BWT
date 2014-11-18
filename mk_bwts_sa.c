@@ -188,6 +188,7 @@ void process_lw(unsigned char *T, int32_t *SA, int len, int next_lwp) {
 void output_bwts(unsigned char *T, int32_t *SA, int len) {
 	int last_lw_pos = len;
   int i;
+  char *outbuf = (char *)SA;
 	for(i=0; i<len; i++) {
 		int outc;
 		if(SA[i] < last_lw_pos) {
@@ -197,8 +198,11 @@ void output_bwts(unsigned char *T, int32_t *SA, int len) {
 		else {
 			outc = T[SA[i]-1];
 		}
-		putc_unlocked(outc, bwtsout);
+		//putc_unlocked(outc, bwtsout);
+    outbuf[i] = outc;
 	}
+
+  fwrite(outbuf, 1, len, bwtsout);
 
 	MARK_TIME("Write BWTS");
 }
