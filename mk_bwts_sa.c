@@ -4,6 +4,10 @@
 #include <divsufsort.h>
 #include "map_file.h"
 
+#ifndef MIN
+#define MIN(a,b) (((a)<(b))?(a):(b))
+#endif
+
 #ifdef SHOW_TIMINGS
 #include <time.h>
 static clock_t last_clock, t;
@@ -59,28 +63,48 @@ int main(int argc, char **argv)
 	return 0;
 }
 
+// Move Lyndon Word at lw_start down to its final rank, updating SA and ISA
+// Args:
+//  lw_start -- start position of LW in the text
+//  lk_len -- length of LW
+//  lw_rank -- start rank of LW
+// Return:
+//  final rank
 int move_lyndonword_head(int lw_start, int lw_len, int lw_rank)
 {
+    // Compare LW with the next-ranking suffix (lw_rank+1);
+    //  We may stop when
+    //  !(sa[lw_rank+1] > lw_start+lw_len)
+    //  because any LW ranks lexicographically before any position earlier in the text (property of the LW factorization) and
+    //  before any other position within itself (property of Lyndon words)
 	while(lw_rank+1<len && (sa[lw_rank+1] > lw_start+lw_len)) {
-		int k = 0;
 		int next_rank_start = sa[lw_rank+1];
 
-		while((next_rank_start + k < len) && (k < lw_len) && T[lw_start + k] == T[next_rank_start + k]) {
-			k++;
-		}
-		if((next_rank_start + k < len) && (k < lw_len) && T[lw_start + k] < T[next_rank_start + k]) {
-			break;
-		}
-		if((k == lw_len) && (lw_rank < isa[next_rank_start + k])) {
-			break;
-		}
+        int compare_len = MIN(lw_len, len - next_rank_start);
+
+		int res = memcmp(&(T[lw_start]), &(T[next_rank_start]), compare_len);
+
+        if(res < 0) {
+            break;
+        }
+        else if(res == 0) {
+
+            // if the next rank runs up to the EOF, then it is smaller
+            if(next_rank_start + lw_len < len) {
+
+                // otherwise, compare ranks:
+                if(lw_rank < isa[next_rank_start + lw_len]) {
+                    break;
+                }
+            }
+        }
 
 		sa[lw_rank] = sa[lw_rank+1];
 		isa[sa[lw_rank]] = lw_rank;
 		lw_rank++;
 	}
 	sa[lw_rank] = lw_start;
-	isa[sa[lw_rank]] = lw_rank;
+	isa[lw_start] = lw_rank;
 
 	return lw_rank;
 }
@@ -90,7 +114,7 @@ unsigned char *make_bwts_sa(void)
 	int min, min_i;
 	int i;
 
-
+    // compute ISA
 	isa = (int *)malloc(sizeof(int) * len);
 	for(i=0; i<len; i++) {
 		isa[sa[i]] = i;
@@ -121,7 +145,7 @@ unsigned char *make_bwts_sa(void)
 					test_rank++;
 				}
 				sa[test_rank] = j;
-				isa[sa[test_rank]] = test_rank;
+				isa[j] = test_rank;
 
 				ref_rank = test_rank;
 

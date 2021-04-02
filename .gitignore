@@ -3,5 +3,7 @@ BAR
 FOO
 TEST
 map_file.o
+unbwts
+unbwts.o
 mk_bwts
 mk_bwts_sa.o
