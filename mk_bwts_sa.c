@@ -125,15 +125,23 @@ unsigned char *make_bwts_sa(void)
 	min = isa[0];
 	min_i = 0;
 	for(i=1; i<len && min>0; i++) {
+
+        // The next LW starts whenever the sort rank hits a new minimum
+        //  (isa[i] = the sort rank at text position i)
 		if(isa[i] < min) {
 			int lw_start = min_i;
+
+            // Re-rank the LW ending at i - 1
 			int lw_head_rank = move_lyndonword_head(lw_start, i - min_i, min);
 
 			int ref_rank = lw_head_rank;
 			int j;
-			for(j=i; j-->lw_start+1; ) { // iterate through the new lyndon word from end to start
+
+            // We iterate backward through the just-ranked Lyndon word, adjusting ranks
+			for(j=i; j-->lw_start+1; ) {
 				int test_rank = isa[j];
 				int start_rank = test_rank;
+
 				while(test_rank < len-1) {
 					int next_rank_start = sa[test_rank+1];
 					if(j > next_rank_start || T[j] != T[next_rank_start] || ref_rank < isa[next_rank_start+1]) {
