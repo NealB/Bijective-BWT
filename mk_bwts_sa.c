@@ -1,3 +1,5 @@
+/* vim: set noai ts=2 sw=2: */
+
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -28,8 +30,7 @@ unsigned char *make_bwts_sa(void);
 int move_lyndonword_head(int lw_start, int lw_len, int lw_rank);
 
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
 	if(argc < 2) {
 		fprintf(stderr, "Usage: mk_bwts_sa <infile> [<outfile.bwts>]\n");
 		fprintf(stderr, "If unspecified, output is written to standard output\n");
@@ -70,21 +71,21 @@ int main(int argc, char **argv)
 //  lw_rank -- start rank of LW
 // Return:
 //  final rank
-int move_lyndonword_head(int lw_start, int lw_len, int lw_rank)
-{
-    // Compare LW with the next-ranking suffix (lw_rank+1);
+int move_lyndonword_head(int lw_start, int lw_len, int lw_rank) {
+    // Compare Lyndon factor T[lw_start..lw_start+lw_len-1] with the next-ranking suffix (lw_rank+1);
     //  We may stop when
     //  !(sa[lw_rank+1] > lw_start+lw_len)
-    //  because any LW ranks lexicographically before any position earlier in the text (property of the LW factorization) and
+    //  because any Lyndon factor ranks lexicographically before any suffix earlier in the text (property of the LW factorization) and
     //  before any other position within itself (property of Lyndon words)
 	while(lw_rank+1<len && (sa[lw_rank+1] > lw_start+lw_len)) {
-		int next_rank_start = sa[lw_rank+1];
+		const int next_rank_start = sa[lw_rank+1];
 
-        int compare_len = MIN(lw_len, len - next_rank_start);
+		const int compare_len = MIN(lw_len, len - next_rank_start);
 
-		int res = memcmp(&(T[lw_start]), &(T[next_rank_start]), compare_len);
+		// TODO: this seems to theorectically work faster if we have an LCP array or an LCE data structure
+		const int res = memcmp(&(T[lw_start]), &(T[next_rank_start]), compare_len);
 
-        if(res < 0) {
+        if(res < 0) { // our Lyndon word is smaller
             break;
         }
         else if(res == 0) {
@@ -99,6 +100,7 @@ int move_lyndonword_head(int lw_start, int lw_len, int lw_rank)
             }
         }
 
+		// shift SA/ISA one position to left
 		sa[lw_rank] = sa[lw_rank+1];
 		isa[sa[lw_rank]] = lw_rank;
 		lw_rank++;
@@ -109,8 +111,7 @@ int move_lyndonword_head(int lw_start, int lw_len, int lw_rank)
 	return lw_rank;
 }
 
-unsigned char *make_bwts_sa(void)
-{
+unsigned char *make_bwts_sa(void) {
 	int min, min_i;
 	int i;
 
@@ -123,28 +124,24 @@ unsigned char *make_bwts_sa(void)
 	MARK_TIME("Compute ISA");
 
 	min = isa[0];
-	min_i = 0;
-	for(i=1; i<len && min>0; i++) {
+	min_i = 0; // index of the currently smallest ISA value up so far
+	for(i=1; i<len && min>0; i++) { // O(n) -> number of text positions
+		if(isa[i] < min) { // only take action if isa[i] < min -> found the next Lyndon factor
+			const int lw_start = min_i;
+			const int lw_head_rank = move_lyndonword_head(lw_start, i - min_i, min);
 
-        // The next LW starts whenever the sort rank hits a new minimum
-        //  (isa[i] = the sort rank at text position i)
-		if(isa[i] < min) {
-			int lw_start = min_i;
-
-            // Re-rank the LW ending at i - 1
-			int lw_head_rank = move_lyndonword_head(lw_start, i - min_i, min);
-
-			int ref_rank = lw_head_rank;
-			int j;
-
-            // We iterate backward through the just-ranked Lyndon word, adjusting ranks
-			for(j=i; j-->lw_start+1; ) {
+			int ref_rank = lw_head_rank; // SA position of the previous suffix we fixed
+			// j: text position
+			for(int j = i; j-- > lw_start+1; ) { // iterate through the new lyndon word from end to start
 				int test_rank = isa[j];
-				int start_rank = test_rank;
-
-				while(test_rank < len-1) {
-					int next_rank_start = sa[test_rank+1];
-					if(j > next_rank_start || T[j] != T[next_rank_start] || ref_rank < isa[next_rank_start+1]) {
+				const int start_rank = test_rank;
+				// task: move the suffix T[j..] to the right position in SA within its respective bucket
+				while(test_rank < len-1) { // for loop in SA[ISA[j]..len-1]
+					const int next_rank_start = sa[test_rank+1]; // lexicographic successor of T[j..], text position
+					if(j > next_rank_start  // we only shft suffixes in SA downwards when they start earlier in text order
+							|| T[j] != T[next_rank_start]  // if we are the last in the bucket with the same starting character -> stop
+							|| ref_rank < isa[next_rank_start+1] // ref_rank is the rank of T[j+1..]. If ref_rank is smaller than the rank of T[next_rank_start..] this means that an inducing step would also put T[j..] to the left of T[next_rank_start..] -> stop
+							) {
 						break;
 					}
 
@@ -157,8 +154,8 @@ unsigned char *make_bwts_sa(void)
 
 				ref_rank = test_rank;
 
-				if(start_rank == test_rank) {
-					break;
+				if(start_rank == test_rank) { // did we modify test_rank?
+					break; // if not, then we cannot change the order of the subsequent ranks as this would be a contradiction to induce sorting
 				}
 			}
 
@@ -172,11 +169,12 @@ unsigned char *make_bwts_sa(void)
 
 	unsigned char *bwts = (unsigned char *)malloc(len);
 
-	min = len;
-	min_i = 0;
+	min = len; // text position of current min
+	min_i = 0; // index in ISA of current min
 	for(i=0; i<len; i++) {
-		if(isa[i] < min) {
-			if(min < len) {
+		if(isa[i] < min) { // found Lyndon boundary 
+			if(min < len) { // bwts[0] is treated as a special case afterwards
+				// min is the first position of the current Lyndon factor. We want BWTS[ISA[i]] = T[i-1], but if ISA[i] is a Lyndon factor start, then we want to store the last character of the factor in BWTS.
 				bwts[min] = T[i - 1];
 			}
 
@@ -187,7 +185,7 @@ unsigned char *make_bwts_sa(void)
 			bwts[isa[i]] = T[i - 1];
 		}
 	}
-	bwts[0] = T[len - 1];
+	bwts[0] = T[len - 1]; // this is an invariant
 	
 	MARK_TIME("Generate BWTS");
 
