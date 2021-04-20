@@ -7,12 +7,11 @@
 static unsigned char *BWTS;
 static unsigned char *outBuf;
 static long len;
-static unsigned int counts[256];
-static unsigned int *prev;
-static unsigned int *next;
-static char *seen;
+static int counts[256];
+static int *prev;
+static int *next;
 
-void cycleSort(unsigned int *prev, char *seen);
+void cycleSort(int *prev);
 
 int main(int argc, char **argv)
 {
@@ -39,8 +38,7 @@ int main(int argc, char **argv)
         sum += currentCount;
     }
 
-    prev = (unsigned int*)malloc(len * sizeof(unsigned int));
-    seen = (char*)malloc(len);
+    prev = (int*)malloc(len * sizeof(int));
 
     outBuf = (unsigned char*)malloc(len);
 
@@ -50,7 +48,7 @@ int main(int argc, char **argv)
     }
 
 
-    cycleSort(prev, seen);
+    cycleSort(prev);
 
 
     next = prev; // change of name
@@ -61,13 +59,11 @@ int main(int argc, char **argv)
     int writtenCount = 0;
     int lwCount = 0;
 
-    memset(seen, 0, len);
-
     while(writtenCount < len)
     {
         //printf("Lyndon word %d\n", lwCount);
 
-        while(seen[start] == 1 && start < len) {
+        while(next[start] == -1 && start < len) {
             start++;
         }
 
@@ -76,11 +72,12 @@ int main(int argc, char **argv)
         int lyndonWordLength = 0;
 
         do {
-            pos = next[pos];
+            int nextPos = next[pos];
 
-            outBuf[lyndonWordLength++] = BWTS[pos];
+            outBuf[lyndonWordLength++] = BWTS[nextPos];
 
-            seen[pos] = 1;
+            next[pos] = -1;
+            pos = nextPos;
 
         } while(pos != start);
 
@@ -103,11 +100,13 @@ int main(int argc, char **argv)
     return 0;
 }
 
-void cycleSort(unsigned int *A, char *seen)
+void cycleSort(int *A)
 {
     int start = 0;
     int sortedCount = 0;
     int i;
+
+    char *seen = (char*)malloc(len);
     memset(seen, 0, len);
 
 
@@ -139,6 +138,7 @@ void cycleSort(unsigned int *A, char *seen)
         } while(pos1 != start);
     }
 
+    free(seen);
 }
 
 
