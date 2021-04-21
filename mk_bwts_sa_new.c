@@ -29,7 +29,7 @@ static unsigned char *bwts;
 
 void make_bwts_sa(void);
 int move_lyndonword_head(int lw_start, int lw_len, int lw_rank);
-void separate_cycle(int lw0_start, int lw1_start, int lw0_rank);
+void separate_lw_cycle(int lw0_start, int lw1_start, int lw0_rank);
 void write_bwts_cycle(int cycle_start_pos, int cycle_end_pos);
 void compute_ISA(void);
 
@@ -115,8 +115,8 @@ int move_lyndonword_head(int lw_start, int lw_len, int lw_rank) {
 }
 
 // Make the current Lyndon Factor into a BWT cycle by re-ranking positions within the SA/ISA
-void separate_cycle(int lw0_start, int lw1_start, int lw0_rank)
-
+void separate_lw_cycle(int lw0_start, int lw1_start, int lw0_rank)
+{
     const int lw0_head_rank = move_lyndonword_head(lw0_start, lw1_start - lw0_start, lw0_rank);
 
     int ref_rank = lw0_head_rank;
@@ -180,7 +180,7 @@ void make_bwts_sa(void) {
 		if(isa[j] < lw0_start_rank) {
       int lw1_start_pos = j; 
 
-      separate_cycle(lw0_start_pos, lw1_start_pos, lw0_start_rank);
+      separate_lw_cycle(lw0_start_pos, lw1_start_pos, lw0_start_rank);
 
       lw0_start_pos = lw1_start_pos;
       lw0_start_rank = isa[lw1_start_pos];
