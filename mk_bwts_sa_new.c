@@ -114,8 +114,9 @@ int move_lyndonword_head(int lw_start, int lw_len, int lw_rank) {
 	return lw_rank;
 }
 
+// Make the current Lyndon Factor into a BWT cycle by re-ranking positions within the SA/ISA
 void separate_cycle(int lw0_start, int lw1_start, int lw0_rank)
-{
+
     const int lw0_head_rank = move_lyndonword_head(lw0_start, lw1_start - lw0_start, lw0_rank);
 
     int ref_rank = lw0_head_rank;
@@ -149,6 +150,7 @@ void separate_cycle(int lw0_start, int lw1_start, int lw0_rank)
 
 }
 
+// Write current cycle to the BWTS in memory
 void write_bwts_cycle(int cycle_start_pos, int cycle_end_pos)
 {
   int i;
