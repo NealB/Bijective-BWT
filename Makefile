@@ -2,14 +2,14 @@ CC = gcc
 CFLAGS = -O2
 #CFLAGS = -O2 -DSHOW_TIMINGS
 LDFLAGS = -ldivsufsort
-BINARY_FILES = mk_bwts unbwts mk_bwts_sa_new
+BINARY_FILES = mk_bwts unbwts mbwt_new
 
 all: $(BINARY_FILES)
 
 mk_bwts: mk_bwts_sa.o map_file.o
 	$(CC) -o $@ $(CFLAGS) mk_bwts_sa.o map_file.o $(LDFLAGS)
 
-mk_bwts_sa_new: mk_bwts_sa_new.o map_file.o
+mbwt_new: mk_bwts_sa_new.o map_file.o
 	$(CC) -o $@ $(CFLAGS) mk_bwts_sa_new.o map_file.o $(LDFLAGS)
 
 unbwts: unbwts.o map_file.o

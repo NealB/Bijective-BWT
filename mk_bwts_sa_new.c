@@ -36,7 +36,7 @@ void compute_ISA(void);
 int main(int argc, char **argv) {
 	if(argc < 2) {
 		fprintf(stderr, "Usage: mk_bwts_sa <infile> [<outfile.bwts>]\n");
-		fprintf(stderr, "If unspecified, output is written to standard output\n");
+		fprintf(stderr, "If unspecified, output is written to a temp file\n");
 		exit(1);
 	}
 
@@ -54,7 +54,25 @@ int main(int argc, char **argv) {
 
 	make_bwts_sa();
 
-	FILE *bwtsout = bwts_outfilename ? fopen(bwts_outfilename, "w") : stdout;
+	//FILE *bwtsout = bwts_outfilename ? fopen(bwts_outfilename, "w") : stdout;
+	FILE *bwtsout;
+
+	if(bwts_outfilename) {
+		bwtsout = fopen(bwts_outfilename, "wb");
+	}
+	else {
+		char outfilenamebuf[] = "BWTS_out_XXXXXX.bwts";
+
+		int outFileFd = mkstemps(outfilenamebuf, 5);
+
+		printf("Writing to %s\n", outfilenamebuf);
+		bwtsout = fdopen(outFileFd, "w");
+
+		bwts_outfilename = outfilenamebuf;
+	}
+
+
+
 	if(!bwtsout) {
 		fprintf(stderr, "Couldn't open BWTS file for writing\n");
 		perror(bwts_outfilename);
