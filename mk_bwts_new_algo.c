@@ -66,22 +66,47 @@ void separate_lw_cycle(const int lw0_start, int lw1_start, int lw0_rank)
 {
   const int wordLen = lw1_start - lw0_start;
 
-  //prev_rank is the rank of the next position in cyclic order
+  //prev_rank is the rank of the next text position in the current LW, modulo the LW length:
+  //  Definitions:
+  //    T[p] -> character at text position p
+  //    rank(T[p]) -> lex. rank of text position p
+  //    lw0_start -> start position of current LW in text
+  //    lw1_start -> start position of next LW in text, or, if there is no next LW, last position + 1
+  //    lw0_rank -> rank(T[lw0_start])
+  //
+  //  Example for LW of length 3, starting at T[40]:
+  //    prev_rank_0 = rank(T[40])
+  //    prev_rank_1 = rank(T[42])
+  //    prev_rank_2 = rank(T[41])
+  //    prev_rank_3 = rank(T[40])
+  //    prev_rank_4 = rank(T[42])
+  //    ...
   int prev_rank = lw0_rank;
 
-  int p = 0;
-  for(; ; p++) {
+  //iteration counts characters visited
+  int iteration = 0;
+  while(1) {
 
-    //j starts at the end of the Lyndon factor and cycles through backwards until ranks stop needing to be shifted
-    int j = lw1_start - 1 - (p % wordLen);
+    //textPos is initially the last character of current LW; proceeding to scan the LW backward, wrapping as needed:
+    //
+    //  Example for LW of length 3, starting at T[40]:
+    //    textPos_0 = 42
+    //    textPos_1 = 41
+    //    textPos_2 = 40
+    //    textPos_3 = 42
+    //    textPos_4 = 41
+    //    ...
+    int textPos = lw1_start - 1 - (iteration % wordLen);
 
-    int curr_rank = isa[j];
-    const int start_rank = isa[j];
+    //curr_rank and start_rank are initialized to rank(T[textPos]):
+    int curr_rank = isa[textPos];
+    const int start_rank = isa[textPos];
 
+    //we re-rank T[textPos] by comparing with the suffix at SA[curr_rank + 1] and transposing when they are out of order, like in bubblesort:
     while(curr_rank < len-1) {
       const int next_rank_start = sa[curr_rank+1];
-      if(j > next_rank_start
-          || T[j] != T[next_rank_start]
+      if(textPos > next_rank_start
+          || T[textPos] != T[next_rank_start]
           || prev_rank < isa[next_rank_start+1]
           ) {
         break;
@@ -91,18 +116,22 @@ void separate_lw_cycle(const int lw0_start, int lw1_start, int lw0_rank)
       isa[sa[curr_rank]] = curr_rank;
       curr_rank++;
     }
-    sa[curr_rank] = j;
-    isa[j] = curr_rank;
+    sa[curr_rank] = textPos;
+    isa[textPos] = curr_rank;
 
     prev_rank = curr_rank;
 
-
     if(start_rank == curr_rank) {
+      //if rank(T[textPos]) hasn't changed, stop -- this LW is done
       break;
+    }
+    else {
+      //if rank(T[textPos]) _has_ changed, do another iteration to check if rank(T[textPos - 1]) changes. the rank change will propagate backward
+      iteration++;
     }
   }
 
-  printf("Word len: %10d; visited: %10d\n", wordLen, p);
+  printf("Word len: %10d; visited: %10d\n", wordLen, iteration);
 }
 
 
