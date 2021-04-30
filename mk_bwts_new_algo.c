@@ -81,33 +81,27 @@ void separate_lw_cycle(const int lw0_start, int lw1_start, int lw0_rank)
   //    prev_rank_3 = rank(T[40])
   //    prev_rank_4 = rank(T[42])
   //    ...
-  int prev_rank = lw0_rank;
+  //int prev_rank = lw0_rank;
+
+  //int plus1TextPos = lw0_start;
 
   //iteration counts characters visited
   int iteration = 0;
   while(1) {
 
-    //textPos is initially the last character of current LW; proceeding to scan the LW backward, wrapping as needed:
-    //
-    //  Example for LW of length 3, starting at T[40]:
-    //    textPos_0 = 42
-    //    textPos_1 = 41
-    //    textPos_2 = 40
-    //    textPos_3 = 42
-    //    textPos_4 = 41
-    //    ...
-    int textPos = lw1_start - 1 - (iteration % wordLen);
+    int lwPosition = wordLen - 1 - (iteration % wordLen);
+    int textPos = lw0_start + lwPosition;
 
-    //curr_rank and start_rank are initialized to rank(T[textPos]):
     int curr_rank = isa[textPos];
+    int plus1Rank = isa[lw0_start + ((lwPosition + 1) % wordLen)];
     const int start_rank = isa[textPos];
 
-    //we re-rank T[textPos] by comparing with the suffix at SA[curr_rank + 1] and transposing when they are out of order, like in bubblesort:
     while(curr_rank < len-1) {
       const int next_rank_start = sa[curr_rank+1];
       if(textPos > next_rank_start
           || T[textPos] != T[next_rank_start]
-          || prev_rank < isa[next_rank_start+1]
+          || (wordLen>1 && plus1Rank < isa[next_rank_start+1])
+          || (wordLen==1 && curr_rank < isa[next_rank_start+1])
           ) {
         break;
       }
@@ -119,19 +113,19 @@ void separate_lw_cycle(const int lw0_start, int lw1_start, int lw0_rank)
     sa[curr_rank] = textPos;
     isa[textPos] = curr_rank;
 
-    prev_rank = curr_rank;
-
     if(start_rank == curr_rank) {
-      //if rank(T[textPos]) hasn't changed, stop -- this LW is done
+      break;
+    }
+    else if(wordLen == 1) {
       break;
     }
     else {
-      //if rank(T[textPos]) _has_ changed, do another iteration to check if rank(T[textPos - 1]) changes. the rank change will propagate backward
       iteration++;
     }
   }
+  int visitedChars = iteration + 1;
 
-  printf("Word len: %10d; visited: %10d\n", wordLen, iteration);
+  printf("Word len: %10d; visited: %10d\n", wordLen, visitedChars);
 }
 
 

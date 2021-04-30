@@ -27,5 +27,13 @@ install: mk_bwts
 clean:
 	$(RM) *.o $(BINARY_FILES)
 
-test: mk_bwts TEST
-	./mk_bwts TEST FOO ; mk_bwts TEST BAR ; cmp FOO BAR && echo "Match"
+test: mk_bwts_new_algo
+	rm -f testdata/testjunk.newalgo.bwts
+	./mk_bwts_new_algo testdata/testjunk testdata/testjunk.newalgo.bwts
+	cmp testdata/testjunk.newalgo.bwts testdata/testjunk.bwts && echo "Match"
+
+test-enwik8: mk_bwts_new_algo
+	rm -f testdata/enwik8.newalgo.bwts
+	./mk_bwts_new_algo testdata/enwik8 testdata/enwik8.newalgo.bwts
+	cmp testdata/enwik8.newalgo.bwts testdata/enwik8.bwts && echo "Match"
+
