@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -9,20 +11,22 @@ static unsigned char *outBuf;
 static long len;
 static int counts[256];
 static int *prev;
-static int *next;
+//static int *next;
 
-void cycleSort(int *prev);
+//void cycleSort(int *prev);
+void write_out(const char *data, int len, char *outFilenameArg, char *inFilenameArg);
 
 int main(int argc, char **argv)
 {
-	if(argc < 2) {
-		fprintf(stderr, "Usage: unbwts <infile.bwts> [<outfile>]\n");
-		fprintf(stderr, "If unspecified, output is written to standard output\n");
-		exit(1);
-	}
+    if(argc < 2) {
+        fprintf(stderr, "Usage: unbwts <infile.bwts> [<outfile>]\n");
+        fprintf(stderr, "If output file name is unspecified, a name is generated\n");
+        exit(1);
+    }
 
-	char *outfilename = argc < 3 ? NULL : argv[2];
-	map_in(BWTS, len, argv[1]);
+    char *infilename = argv[1];
+    char *outfilename = argc < 3 ? NULL : argv[2];
+    map_in(BWTS, len, infilename);
 
     memset(counts, 0, sizeof(counts));
 
@@ -48,97 +52,126 @@ int main(int argc, char **argv)
     }
 
 
-    cycleSort(prev);
+    //cycleSort(prev);
 
 
-    next = prev; // change of name
+    //next = prev; // change of name
 
     //printf("Finished cycle sort\n");
 
-    int start = 0;
+    int bwtsStart = 0;
     int writtenCount = 0;
-    int lwCount = 0;
+    int outputPos = len - 1;
 
     while(writtenCount < len)
     {
-        //printf("Lyndon word %d\n", lwCount);
-
-        while(next[start] == -1 && start < len) {
-            start++;
+        while(prev[bwtsStart] == -1 && bwtsStart < len) {
+            bwtsStart++;
         }
 
-
-        int pos = start;
-        int lyndonWordLength = 0;
+        int bwtsPos = bwtsStart;
 
         do {
-            int nextPos = next[pos];
+            int prevPos = prev[bwtsPos];
 
-            outBuf[lyndonWordLength++] = BWTS[nextPos];
+            outBuf[outputPos--] = BWTS[bwtsPos];
 
-            next[pos] = -1;
-            pos = nextPos;
+            prev[bwtsPos] = -1;
+            bwtsPos = prevPos;
 
-        } while(pos != start);
+            writtenCount++;
+        } while(bwtsPos != bwtsStart);
 
-        int lwDest = len - writtenCount - lyndonWordLength;
-        memmove(&(outBuf[lwDest]), &(outBuf[0]), lyndonWordLength);
 
-        writtenCount += lyndonWordLength;
-
-        lwCount++;
     }
 
-	FILE *unbwts_out = outfilename ? fopen(outfilename, "w") : stdout;
-	if(!unbwts_out) {
-		fprintf(stderr, "Couldn't open output file for writing\n");
-		perror(outfilename);
-		exit(1);
-	}
-	fwrite(outBuf, 1, len, unbwts_out);
+
+    write_out(outBuf, len, outfilename, infilename);
 
     return 0;
 }
 
-void cycleSort(int *A)
+//void cycleSort(int *A)
+//{
+//    int start = 0;
+//    int sortedCount = 0;
+//    int i;
+//
+//    char *seen = (char*)malloc(len);
+//    memset(seen, 0, len);
+//
+//
+//    while(sortedCount < len) {
+//
+//        while(seen[start] == 1 && start < len) {
+//            start++;
+//        }
+//
+//        int pos1 = start;
+//        int pos2 = -1;
+//        int pos3 = -1;
+//
+//        do {
+//            pos3 = pos2;
+//            pos2 = pos1;
+//            pos1 = A[pos1];
+//
+//            if(pos3 >= 0) {
+//                A[pos2] = pos3;
+//                seen[pos2] = 1;
+//            }
+//            if(pos1 == start) {
+//                A[pos1] = pos2;
+//                seen[pos1] = 1;
+//            }
+//
+//            sortedCount++;
+//        } while(pos1 != start);
+//    }
+//
+//    free(seen);
+//}
+
+
+void write_out(const char *data, int len, char *outFilenameArg, char *inFilenameArg)
 {
-    int start = 0;
-    int sortedCount = 0;
-    int i;
+    char *outFilename;
+    FILE *out = NULL;
 
-    char *seen = (char*)malloc(len);
-    memset(seen, 0, len);
+    if(outFilenameArg != NULL) {
+        outFilename = outFilenameArg;
+        out = fopen(outFilenameArg, "wb");
 
-
-    while(sortedCount < len) {
-
-        while(seen[start] == 1 && start < len) {
-            start++;
+        if(!out) {
+            fprintf(stderr, "Couldn't open output file for writing\n");
+            perror(outFilename);
+            exit(1);
         }
-        
-        int pos1 = start;
-        int pos2 = -1;
-        int pos3 = -1;
+    }
+    else {
+        int rv = asprintf(&outFilename, "%s_XXXXXX", inFilenameArg);
 
-        do {
-            pos3 = pos2;
-            pos2 = pos1;
-            pos1 = A[pos1];
+        if(rv > 0) {
+            int outFileFd = mkstemps(outFilename, 0);
 
-            if(pos3 >= 0) {
-                A[pos2] = pos3;
-                seen[pos2] = 1;
+            printf("Writing to %s\n", outFilename);
+            out = fdopen(outFileFd, "w");
+
+            if(!out) {
+                fprintf(stderr, "Couldn't open output file for writing\n");
+                perror(outFilename);
+                exit(1);
             }
-            if(pos1 == start) {
-                A[pos1] = pos2;
-                seen[pos1] = 1;
-            }
+        }
+        else {
+            fprintf(stderr, "Allocating outfile name failed. Abort\n");
+            exit(1);
+        }
 
-            sortedCount++;
-        } while(pos1 != start);
     }
 
-    free(seen);
-}
+    fwrite(data, 1, len, out);
 
+    fclose(out);
+}
 
