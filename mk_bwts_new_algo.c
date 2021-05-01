@@ -29,8 +29,9 @@ static saidx_t *sa;
 static int *isa;
 
 unsigned char *make_bwts_sa(void);
-void separate_lw_cycle(const int lw0_start, int lw1_start, int lw0_rank);
+void separate_lw_cycle(const int lw0_start, int lw1_start);
 void write_bwts_out(char *outFilenameArg, char *inFilenameArg);
+int find_next_lyndon_factor(int start_pos);
 
 
 int main(int argc, char **argv) {
@@ -62,7 +63,7 @@ int main(int argc, char **argv) {
 }
 
 // Make the current Lyndon Factor into a BWT cycle by re-ranking positions within the SA/ISA
-void separate_lw_cycle(const int lw0_start, int lw1_start, int lw0_rank)
+void separate_lw_cycle(const int lw0_start, int lw1_start)
 {
   const int wordLen = lw1_start - lw0_start;
 
@@ -72,7 +73,6 @@ void separate_lw_cycle(const int lw0_start, int lw1_start, int lw0_rank)
   //    rank(T[p]) -> lex. rank of text position p
   //    lw0_start -> start position of current LW in text
   //    lw1_start -> start position of next LW in text, or, if there is no next LW, last position + 1
-  //    lw0_rank -> rank(T[lw0_start])
   //
   //  Example for LW of length 3, starting at T[40]:
   //    prev_rank_0 = rank(T[40])
@@ -81,7 +81,6 @@ void separate_lw_cycle(const int lw0_start, int lw1_start, int lw0_rank)
   //    prev_rank_3 = rank(T[40])
   //    prev_rank_4 = rank(T[42])
   //    ...
-  //int prev_rank = lw0_rank;
 
   //int plus1TextPos = lw0_start;
 
@@ -129,6 +128,15 @@ void separate_lw_cycle(const int lw0_start, int lw1_start, int lw0_rank)
 }
 
 
+int find_next_lyndon_factor(int start_pos)
+{
+  int p = start_pos + 1;
+  while((p < len) && (isa[p] > isa[start_pos])) {
+    p++;
+  }
+  return p;
+}
+
 unsigned char *make_bwts_sa(void) {
 	int i, j;
 
@@ -140,45 +148,40 @@ unsigned char *make_bwts_sa(void) {
 
 	MARK_TIME("Compute ISA");
 
-	int lw0_start_rank = isa[0];
 	int lw0_start_pos = 0; 
 
-	for(j=1; j<len && lw0_start_rank>0; j++) {
+  while(lw0_start_pos < len) {
+    int lw1_start_pos = find_next_lyndon_factor(lw0_start_pos);
 
-		if(isa[j] < lw0_start_rank) {
-      int lw1_start_pos = j; 
+    if(lw1_start_pos == len) {
+      break;
+    }
 
-      separate_lw_cycle(lw0_start_pos, lw1_start_pos, lw0_start_rank);
+    separate_lw_cycle(lw0_start_pos, lw1_start_pos);
 
-      lw0_start_pos = lw1_start_pos;
-      lw0_start_rank = isa[lw1_start_pos];
-		}
+    lw0_start_pos = lw1_start_pos;
+  }
 
-	}
 	free(sa);
 
 	MARK_TIME("Fix sort order");
 
 	unsigned char *bwts = (unsigned char *)malloc(len);
 
-	int min = len; // text position of current min
-	int min_i = 0; // index in ISA of current min
-	for(i=0; i<len; i++) {
-		if(isa[i] < min) { // found Lyndon boundary 
-			if(min < len) { // bwts[0] is treated as a special case afterwards
-				// min is the first position of the current Lyndon factor. We want BWTS[ISA[i]] = T[i-1], but if ISA[i] is a Lyndon factor start, then we want to store the last character of the factor in BWTS.
-				bwts[min] = T[i - 1];
-			}
+  lw0_start_pos = 0;
+  
+  while(lw0_start_pos < len) {
+    int lw1_start_pos = find_next_lyndon_factor(lw0_start_pos);
 
-			min = isa[i];
-			min_i = i;
-		}
-		else {
-			bwts[isa[i]] = T[i - 1];
-		}
-	}
-	bwts[0] = T[len - 1]; // this is an invariant
-	
+    bwts[isa[lw0_start_pos]] = T[lw1_start_pos - 1];
+
+    for(i = lw0_start_pos + 1; i < lw1_start_pos; i++) {
+      bwts[isa[i]] = T[i - 1];
+    }
+
+    lw0_start_pos = lw1_start_pos;
+  }
+
 	MARK_TIME("Generate BWTS");
 
 	free(isa);
